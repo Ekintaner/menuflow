@@ -37,3 +37,7 @@ Tüm ürünler ve masa bilgileri demo verisidir. Sepet bellekte tutulur; sipari�
 CI lint, tip kontrolü, build, birim ve tarayıcı testlerini çalıştırır; dağıtım yapmaz. GitHub Actions tüketimi hesabın ücretsiz kotasına tabidir. Yerel kontroller hesap gerektirmez.
 
 Planlanan yayın: Pages statik `dist/` çıktısı; aynı site altında `/api/*` Worker rotası. Pages SPA fallback ayarı API rotasından sonra değerlendirilmelidir. `workers_dev` kapalıdır. Bulut hesabı, kaynak veya dağıtım oluşturulmadı. GitHub push kullanıcı onayı gerektirir.
+
+## CODEX-002 veritabanı
+
+Docker açıkken npm run test:db ile iki tenant izolasyon testleri çalıştırılır. Migration, yetki modeli ve sınırlar: [CODEX-002](docs/CODEX-002-results.md). Test bootstrap SQL dosyası üretime uygulanmaz.

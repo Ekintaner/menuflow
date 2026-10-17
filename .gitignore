@@ -34,3 +34,4 @@ playwright-report/
 test-results/
 
 dist-worker/
+supabase/.temp/

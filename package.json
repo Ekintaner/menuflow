@@ -13,7 +13,8 @@
     "test:e2e": "playwright test",
     "preview": "vite preview",
     "check": "npm run lint && npm run build && npm test && npm run test:e2e",
-    "api:check": "wrangler deploy --dry-run --outdir dist-worker"
+    "api:check": "wrangler deploy --dry-run --outdir dist-worker",
+    "test:db": "node scripts/test-db.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.118.0",
