@@ -32,3 +32,7 @@ Yeni migration `20261017231145_central_membership_control.sql` yalnız menuflow-
 - Enjeksiyonla Auth oluşturulduktan sonra üyelik yazması başarısız yapıldı: 202 kısmi sonuç, üyelik öncesi giriş reddi, aynı UUID'ye grant sonrası normal giriş kanıtlandı. Test hesapları yalnız yerel ortamda oluşturulup temizlendi.
 - Ağsız PostgreSQL izolasyon/yazma yasağı/durum yarışları ve restore testi geçti: 13 RLS tablo, 23 policy; azalan üç policy eski owner membership yazma politikalarıdır. Restore kaynak/hedef içerik hash'leri ve kayıt sayıları eşleşti.
 - Yerel Supabase security/performance advisors sorun bildirmedi. Worker staging/pilot dry-run ve Pages paket derlemesi geçti. CareerOS'a, gerçek işletmeye, bulut hesaplarına veya gerçek secret'lara dokunulmadı.
+
+## CI başlangıç yarışı düzeltmesi
+
+`6659e97` push sonrası [CI 39078544401](https://github.com/Ekintaner/menuflow/actions/runs/39078544401) test:db adımında PostgreSQL socket kaybolmasıyla durdu. Docker giriş betiğinin geçici, yalnız Unix socket dinleyen bootstrap sunucusu ilk pg_isready kontrolünü geçebiliyor; restart sırasında sıradaki SQL bağlantısı kayboluyordu. Readiness kontrolü 127.0.0.1 TCP dinleyen son sunucuyu bekleyecek şekilde düzeltildi. Ek sabit uyku veya başarısız SQL'i görmezden gelme eklenmedi. Yeni yerel test:db ve restore tekrar geçti; test betiği lint kontrolü geçti. Bu düzeltme kullanıcı oturum/üyelik davranışını değiştirmez. Son commit'in GitHub CI sonucu teslim raporunda ayrıca kaydedilir.

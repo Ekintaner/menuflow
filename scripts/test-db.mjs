@@ -22,8 +22,17 @@ try {
   let ready = false;
   for (let i = 0; i < 60; i++) {
     if (
-      spawnSync("docker", ["exec", container, "pg_isready", "-U", "postgres"])
-        .status === 0
+      // The Docker entrypoint first runs a temporary Unix-socket-only server,
+      // then restarts PostgreSQL. Wait for TCP to avoid mistaking it for readiness.
+      spawnSync("docker", [
+        "exec",
+        container,
+        "pg_isready",
+        "-h",
+        "127.0.0.1",
+        "-U",
+        "postgres",
+      ]).status === 0
     ) {
       ready = true;
       break;
