@@ -1,0 +1,35 @@
+{
+  "notice": "Tamamen kurgu; gerçek işletme veya müşteri verisi değildir. Otomatik import yapılmaz.",
+  "restaurant": {
+    "name": "MenuFlow Demo Kafe",
+    "slug": "menuflow-demo",
+    "currency": "TRY",
+    "timezone": "Europe/Istanbul"
+  },
+  "settings": { "acceptance_mode": "manual", "ordering_enabled": false },
+  "tables": ["Demo Masa 1", "Demo Masa 2"],
+  "categories": [
+    {
+      "name": "İçecekler",
+      "products": [
+        { "name": "Çay", "price_minor": 4000, "available": true },
+        { "name": "Türk Kahvesi", "price_minor": 9000, "available": true }
+      ]
+    },
+    {
+      "name": "Yiyecekler",
+      "products": [
+        { "name": "Kaşarlı Tost", "price_minor": 15000, "available": true },
+        { "name": "Günün Tatlısı", "price_minor": 12000, "available": false }
+      ]
+    }
+  ],
+  "sample_cart": {
+    "items": [
+      { "name": "Çay", "quantity": 2 },
+      { "name": "Kaşarlı Tost", "quantity": 1 }
+    ],
+    "expected_total_minor": 23000,
+    "note": "Demo: servis denemesi"
+  }
+}

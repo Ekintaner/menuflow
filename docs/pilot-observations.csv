@@ -1,0 +1,1 @@
+utc_timestamp,environment,commit,restaurant_code,active_customer_orders,visible_panels,api_requests,errors_4xx,errors_5xx,errors_429,order_p95_ms,panel_visibility_ms,worker_cpu_p95_ms,db_mb,storage_mb,egress_gb,backup_verified,restore_rpo_minutes,restore_rto_minutes,decision,redacted_note

@@ -14,6 +14,7 @@
     "preview": "vite preview",
     "check": "npm run lint && npm run build && npm test && npm run test:e2e",
     "api:check": "wrangler deploy --dry-run --outdir dist-worker",
+    "pilot:check": "wrangler deploy --dry-run --config deploy/worker.staging.json --outdir ../dist-worker/staging && wrangler deploy --dry-run --config deploy/worker.pilot.json --outdir ../dist-worker/pilot && node scripts/prepare-pages.mjs staging && node scripts/prepare-pages.mjs pilot && wrangler pages functions build .wrangler/pages-staging/functions --outdir dist-worker/pages --build-output-directory .wrangler/pages-staging/dist",
     "test:db": "node scripts/test-db.mjs",
     "test:integration": "vitest run --config vitest.integration.config.ts"
   },

@@ -2,3 +2,5 @@
 SUPABASE_URL=
 SUPABASE_PUBLISHABLE_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
+# Exact Auth UUID of the single platform administrator; empty keeps /platform API closed.
+PLATFORM_ADMIN_USER_ID=

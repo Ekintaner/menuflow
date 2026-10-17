@@ -4,6 +4,8 @@
 
 ## Günlük yedek
 
+CODEX-007 ekleri: platform yöneticisinin Auth UUID'si, platform_provision fonksiyonunun yalnız service_role EXECUTE ACL'i, restoran/masa ve platform audit kayıtları da restore kontrolüne dahildir. Yeni Auth hesabının UUID'si değişirse PLATFORM_ADMIN_USER_ID otomatik güncellenmez; doğrulanmış hesap ve kullanıcı onayı gerekir. [Pilot rollback ve kurtarma defteri](restaurant-pilot-007.md) izlenir.
+
 Pilot sorumlusu kapanışta sipariş alımını durdurur ve açık işlemleri bitirir. PostgreSQL sürümü, migration listesi, uygulama commit'i, UTC zaman, son sipariş ve kayıt sayıları manifest'e yazılır. Günlük yedek için hedef RPO en fazla 24 saat; bu kabul edilmezse pilot başlamaz. RTO hedefi 60 dakikadır; gerçek veri hacminde henüz ölçülmedi.
 
 Supabase CLI'de önce `supabase db dump --help` kontrol edilir. Güvenli bağlantı bilgisi operatörün secret deposundan alınır; komut geçmişine veya repoya yazılmaz. Resmi CLI ile roller (`--role-only`), şema (varsayılan) ve veri (`--data-only --use-copy`) ayrı dosyalara `--file` kullanılarak alınır. CLI varsayılan dışlamalarını özellikle Auth/Storage şemaları için kontrol edin: bunları kapsayan desteklenen proje taşıma prosedürünü izleyin; salt public dump'ı tam hesap yedeği saymayın. Auth kullanıcıları/üyelik UUID'leri korunmalıdır.

@@ -752,3 +752,184 @@ it("real Auth → owner menu/image/table → QR → tenant isolation → revocat
   ).toContain("Max-Age=0");
   await admin.storage.from("menu-images").remove([image]);
 });
+
+it("platform console restricts a single operator and provisions restaurants/QR atomically", async () => {
+  const platformEnv = { ...env, PLATFORM_ADMIN_USER_ID: users[0] };
+  const localApi = async (path: string, cookie = "", data?: unknown) =>
+    fetchRequest(
+      new Request(`https://app.test/api/v1${path}`, {
+        method: data === undefined ? "GET" : "POST",
+        headers: {
+          origin: "https://app.test",
+          cookie,
+          "content-type": "application/json",
+        },
+        body: data === undefined ? undefined : JSON.stringify(data),
+      }),
+      platformEnv,
+    );
+  const signIn = async (index: number) => {
+    const r = await api("/auth/login", "", {
+      email: `menuflow-${ids[index]}@example.test`,
+      password,
+    });
+    expect(r.status).toBe(200);
+    return r.headers.get("set-cookie")!.split(";")[0];
+  };
+  const operator = await signIn(0),
+    other = await signIn(1),
+    staff = await signIn(2);
+  expect((await localApi("/platform/restaurants")).status).toBe(401);
+  for (const c of [other, staff]) {
+    expect((await localApi("/platform/restaurants", c)).status).toBe(403);
+    expect(
+      (
+        await localApi("/platform/restaurants", c, {
+          name: "forged",
+          slug: "forged",
+          table_count: 2,
+        })
+      ).status,
+    ).toBe(403);
+  }
+  const token = other.slice("mf_admin=".length);
+  const unprivileged = createClient(
+    env.SUPABASE_URL!,
+    env.SUPABASE_PUBLISHABLE_KEY!,
+    {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+      auth: { persistSession: false },
+    },
+  );
+  const rpcArgs = {
+    operation: "create",
+    actor: users[0],
+    restaurant_name: "forged",
+    restaurant_slug: "forged",
+    owner_user: users[1],
+    table_count: 2,
+  };
+  expect(
+    (await unprivileged.rpc("platform_provision", rpcArgs)).error,
+  ).toBeTruthy();
+  const anonymous = createClient(
+    env.SUPABASE_URL!,
+    env.SUPABASE_PUBLISHABLE_KEY!,
+    { auth: { persistSession: false } },
+  );
+  expect(
+    (await anonymous.rpc("platform_provision", rpcArgs)).error,
+  ).toBeTruthy();
+  const slug = `pilot-${crypto.randomUUID()}`;
+  const failed = await localApi("/platform/restaurants", operator, {
+    name: "Rollback",
+    slug,
+    table_count: 2,
+    owner_user_id: crypto.randomUUID(),
+  });
+  expect(failed.status).toBe(422);
+  expect(
+    (await admin.from("tenants").select("id").eq("slug", slug)).data,
+  ).toEqual([]);
+  const result = await localApi("/platform/restaurants", operator, {
+    name: "Pilot Demo",
+    slug,
+    table_count: 2,
+  });
+  expect(result.status).toBe(201);
+  const { id } = await result.json();
+  try {
+    const listed = await localApi("/platform/restaurants", operator);
+    expect(listed.status).toBe(200);
+    expect(
+      (await listed.json()).restaurants.find((r: { id: string }) => r.id === id)
+        .dining_tables[0].count,
+    ).toBe(2);
+    const settings = await admin
+      .from("tenant_settings")
+      .select("ordering_enabled,menu_published,acceptance_mode")
+      .eq("tenant_id", id)
+      .single();
+    expect(settings.data).toMatchObject({
+      ordering_enabled: false,
+      menu_published: false,
+      acceptance_mode: "manual",
+    });
+    expect(
+      (
+        await localApi(`/platform/restaurants/${id}/tables`, operator, {
+          count: 99,
+        })
+      ).status,
+    ).toBe(422);
+    expect(
+      (
+        await localApi(`/platform/restaurants/${id}/tables`, operator, {
+          count: 1,
+        })
+      ).status,
+    ).toBe(201);
+    const tables = await (
+      await localApi(`/platform/restaurants/${id}/tables`, operator)
+    ).json();
+    expect(tables).toHaveLength(3);
+    const path = `/platform/restaurants/${id}/tables/${tables[0].id}/qr`;
+    expect((await localApi(path, operator, {})).status).toBe(422);
+    const qr = await (
+      await localApi(path, operator, { confirm_rotation: true })
+    ).json();
+    expect(qr.url).toMatch(/^https:\/\/app.test\/menu#[a-f0-9]{64}$/);
+    const first = qr.url.split("#")[1];
+    const stored = await admin
+      .from("table_qr_tokens")
+      .select("token_hash")
+      .eq("tenant_id", id)
+      .single();
+    expect(stored.data).toMatchObject({
+      token_hash: createHash("sha256").update(first).digest("hex"),
+    });
+    // Publish through the normal restaurant owner boundary; the platform account is initial owner.
+    expect(
+      (await api(`/admin/publish?tenant=${id}`, operator, { published: true }))
+        .status,
+    ).toBe(200);
+    const session = await api("/guest-sessions", "", { token: first });
+    expect(session.status).toBe(201);
+    const cookie = session.headers.get("set-cookie")!.split(";")[0];
+    expect(
+      (await localApi(path, other, { confirm_rotation: true })).status,
+    ).toBe(403);
+    expect(
+      (await localApi(path, operator, { confirm_rotation: true })).status,
+    ).toBe(200);
+    expect((await api("/guest-sessions", "", { token: first })).status).toBe(
+      404,
+    );
+    expect((await api("/menu", cookie)).status).toBe(401);
+    const logs = await admin
+      .from("audit_logs")
+      .select("actor_id,action")
+      .eq("tenant_id", id)
+      .like("action", "platform:%");
+    expect(logs.data).toHaveLength(4);
+    expect(logs.data).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          actor_id: users[0],
+          action: "platform:restaurant:create",
+        }),
+        expect.objectContaining({
+          actor_id: users[0],
+          action: "platform:tables:add",
+        }),
+      ]),
+    );
+    for (const row of logs.data ?? [])
+      expect(row).toMatchObject({ actor_id: users[0] });
+  } finally {
+    // UUID returned by this test's own create request; never touches pre-existing tenants.
+    sql(
+      `delete from guest_sessions where tenant_id='${id}';delete from audit_logs where tenant_id='${id}';delete from table_qr_tokens where tenant_id='${id}';delete from dining_tables where tenant_id='${id}';delete from memberships where tenant_id='${id}';delete from audit_logs where tenant_id='${id}';delete from tenant_settings where tenant_id='${id}';delete from tenants where id='${id}';`,
+    );
+  }
+});

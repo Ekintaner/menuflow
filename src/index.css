@@ -40,3 +40,27 @@
     @apply mb-4 text-xs font-bold tracking-widest text-orange-700;
   }
 }
+
+@media print {
+  body:has(#platform-qr-print) main > :not(#platform-qr-print) {
+    display: none;
+  }
+  body:has(#platform-qr-print) * {
+    visibility: hidden;
+  }
+  body:has(#platform-qr-print) #platform-qr-print,
+  body:has(#platform-qr-print) #platform-qr-print * {
+    visibility: visible;
+  }
+  #platform-qr-print {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 85mm;
+    box-shadow: none;
+  }
+  #platform-qr-print .platform-print-hide,
+  #platform-qr-print .platform-print-hide * {
+    display: none;
+  }
+}

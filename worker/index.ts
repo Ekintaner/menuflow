@@ -1,6 +1,10 @@
 import { guest } from "./guest";
+import { platform } from "./platform";
 import { management, ApiError } from "./management";
 export interface Env {
+  DEPLOYMENT_ENV?: string;
+  ORDERING_DISABLED?: string;
+  PLATFORM_ADMIN_USER_ID?: string;
   SUPABASE_URL?: string;
   SUPABASE_PUBLISHABLE_KEY?: string;
   SUPABASE_SERVICE_ROLE_KEY?: string;
@@ -45,6 +49,7 @@ export async function fetchRequest(
   if (
     !path.startsWith("/api/v1/admin/") &&
     !path.startsWith("/api/v1/auth/") &&
+    !path.startsWith("/api/v1/platform/") &&
     path !== "/api/v1/menu" &&
     path !== "/api/v1/guest-sessions" &&
     !path.startsWith("/api/v1/orders")
@@ -53,13 +58,43 @@ export async function fetchRequest(
   const requestId = crypto.randomUUID();
   let response: Response;
   try {
-    response = await (path === "/api/v1/guest-sessions" ||
-    path.startsWith("/api/v1/orders") ||
-    (path === "/api/v1/menu" &&
-      request.method === "GET" &&
-      request.headers.get("cookie")?.includes("mf_guest="))
-      ? guest(request, env)
-      : management(request, env));
+    // Cloud deployments must explicitly opt in after all safety bindings exist.
+    if (env.DEPLOYMENT_ENV !== undefined) {
+      if (
+        !["staging", "pilot"].includes(env.DEPLOYMENT_ENV) ||
+        !env.SUPABASE_URL?.startsWith("https://") ||
+        !env.SUPABASE_PUBLISHABLE_KEY ||
+        !env.SUPABASE_SERVICE_ROLE_KEY ||
+        !env.AUTH_LIMIT ||
+        !env.MENU_LIMIT ||
+        !env.ORDER_LIMIT ||
+        !["true", "false"].includes(env.ORDERING_DISABLED ?? "")
+      )
+        throw new ApiError(
+          503,
+          "NOT_CONFIGURED",
+          "Servis henüz yapılandırılmadı.",
+        );
+    }
+    if (
+      env.ORDERING_DISABLED === "true" &&
+      request.method === "POST" &&
+      path === "/api/v1/orders"
+    )
+      throw new ApiError(
+        503,
+        "ORDERING_PAUSED",
+        "Yeni sipariş alımı geçici olarak durduruldu. İşletmeyle görüşün.",
+      );
+    response = await (path.startsWith("/api/v1/platform/")
+      ? platform(request, env)
+      : path === "/api/v1/guest-sessions" ||
+          path.startsWith("/api/v1/orders") ||
+          (path === "/api/v1/menu" &&
+            request.method === "GET" &&
+            request.headers.get("cookie")?.includes("mf_guest="))
+        ? guest(request, env)
+        : management(request, env));
   } catch (e) {
     const known = e instanceof ApiError;
     response = Response.json(

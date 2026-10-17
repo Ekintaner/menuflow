@@ -1,6 +1,6 @@
 # MenuFlow pilot kurulum ve kullanım rehberi
 
-18 Ekim 2026. Bu rehber yayın yapmaz. CODEX-007 öncesi kontrollü tek işletme pilotu içindir.
+18 Ekim 2026. Bu rehber yayın yapmaz. CODEX-007 güncel [deployment/secrets rehberi](deployment-007.md) ve [örnek restoran, platform, cihaz ve kabul defteri](restaurant-pilot-007.md) ile birlikte kullanılır. Şimdilik yalnız örnek restoran hazırlanır; gerçek pilot başlamadı.
 
 ## Kurulum
 

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Management } from "./Management";
 import { CustomerMenu } from "./CustomerMenu";
+import { Platform } from "./Platform";
 const products = [
   {
     id: "coffee",
@@ -22,6 +23,8 @@ const money = (value: number) =>
 export default function App() {
   const admin = location.pathname.startsWith("/admin");
   const [cart, setCart] = useState<Record<string, number>>({});
+  if (location.pathname === "/platform-demo") return <Platform demo />;
+  if (location.pathname === "/platform") return <Platform />;
   if (admin) return <Management />;
   if (location.pathname === "/menu") return <CustomerMenu />;
   return (

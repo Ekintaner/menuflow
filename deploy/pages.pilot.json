@@ -1,0 +1,22 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "menuflow-pilot",
+  "pages_build_output_dir": "../dist",
+  "compatibility_date": "2026-10-01",
+  "services": [
+    {
+      "binding": "MENUFLOW_API",
+      "service": "menuflow-api-pilot"
+    }
+  ],
+  "env": {
+    "preview": {
+      "services": [
+        {
+          "binding": "MENUFLOW_API",
+          "service": "menuflow-api-staging"
+        }
+      ]
+    }
+  }
+}

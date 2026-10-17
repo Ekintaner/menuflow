@@ -1,4 +1,12 @@
-# MenuFlow — CODEX-006
+# MenuFlow — CODEX-007
+
+CODEX-007: [güvenli deployment ve secrets](docs/deployment-007.md), [örnek restoran / platform yönetimi / pilot kabul defteri](docs/restaurant-pilot-007.md), [demo katalog](docs/demo-catalog.json), [gözlem şablonu](docs/pilot-observations.csv). Gerçek pilot ve bulut deployment başlamadı.
+
+[CODEX-007 yerel sonuç raporu](docs/CODEX-007-results.md).
+
+`/platform-demo` yalnız bellekte çalışan örnek restoran/masa/QR ekranıdır; demo QR gerçek sipariş açmaz. `/platform` yalnız sunucuda `PLATFORM_ADMIN_USER_ID` ile belirlenen tek Auth hesabına açıktır; boşsa API kapalıdır. Restoranlar, masa ekleme ve gerçek masaya özel QR PNG/yazdırma desteklenir. İlk sahibi belirtilmeyen restoranın sahibi platform yöneticisi olur; menü/siparişler `/admin` panelinden yönetilir. Yeni restoran siparişe kapalı ve yayımlanmamış başlar.
+
+Yeni migration yalnız özel yerel Supabase ortamında `npx supabase migration up --local` ile uygulanır. Bulut uygulama ayrı yetki ister. `npm run pilot:check` sadece yerel paketleme ve dry-run yapar; URL veya kaynak oluşturmaz. Pages Function aynı origin API'yi dış rotası olmayan Worker'a service binding ile bağlar; ortam konfigürasyonları `deploy/` altındadır.
 
 CODEX-006 doğrulama raporu: [sonuçlar](docs/CODEX-006-results.md), [yerel ölçümler](docs/performance-006.json), [pilot kurulum/kullanım ve kota bütçesi](docs/pilot-operations.md), [yedekleme ve geri yükleme](docs/backup-restore.md). Yerel gerçek tarayıcı entegrasyonu derlenmiş arayüzü kullanır; `npm run build` sonrasında `npm run test:integration` çalıştırın. CI zaten bu sırayı uygular.
 

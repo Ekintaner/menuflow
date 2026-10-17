@@ -9,5 +9,5 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["worker", "tests", "playwright.config.ts"]
+  "include": ["worker", "functions", "tests", "playwright.config.ts"]
 }
