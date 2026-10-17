@@ -234,9 +234,9 @@ describe("CODEX-003 API", () => {
     );
     expect(r.status).toBe(422);
   });
-  it("keeps orders closed", async () => {
+  it("requires a guest session for orders", async () => {
     expect(
       (await fetchRequest(request("/orders", { total_minor: 1 }), env)).status,
-    ).toBe(404);
+    ).toBe(401);
   });
 });

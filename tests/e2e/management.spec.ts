@@ -86,13 +86,11 @@ test("owner publishes category/product and downloads table QR", async ({
   await expect(
     page.getByRole("heading", { name: "Türk kahvesi" }),
   ).toBeVisible();
-  await page
-    .getByLabel("Görsel yükle Türk kahvesi")
-    .setInputFiles({
-      name: "coffee.png",
-      mimeType: "image/png",
-      buffer: Buffer.from("test image"),
-    });
+  await page.getByLabel("Görsel yükle Türk kahvesi").setInputFiles({
+    name: "coffee.png",
+    mimeType: "image/png",
+    buffer: Buffer.from("test image"),
+  });
   await expect(page.getByRole("status")).toContainText("Görsel kaydedildi");
   await page.getByRole("button", { name: "Masalar", exact: true }).click();
   await page.getByLabel("Ad", { exact: true }).fill("Masa 8");
@@ -116,7 +114,7 @@ test("owner publishes category/product and downloads table QR", async ({
 test("QR fragment is removed and correct tenant/table menu is displayed", async ({
   page,
 }) => {
-  await page.route("**/api/v1/menu", async (route) => {
+  await page.route("**/api/v1/{menu,guest-sessions}", async (route) => {
     if (route.request().method() === "POST")
       expect(route.request().postDataJSON()).toEqual({ token: "a".repeat(64) });
     await route.fulfill({
@@ -138,7 +136,7 @@ test("QR fragment is removed and correct tenant/table menu is displayed", async 
   });
   await page.goto(`/menu#${"a".repeat(64)}`);
   await expect(page.getByRole("heading", { name: "Menümüz" })).toBeVisible();
-  await expect(page.getByText("Sahil Kafe · Masa 8")).toBeVisible();
+  await expect(page.getByText("Sahil Kafe · Masa 8").first()).toBeVisible();
   await expect(page.getByText("Şu an mevcut değil")).toBeVisible();
   expect(page.url()).not.toContain("#");
   await page.reload();
@@ -151,7 +149,7 @@ test("QR fragment is removed and correct tenant/table menu is displayed", async 
   });
 });
 test("invalid QR shows actionable error", async ({ page }) => {
-  await page.route("**/api/v1/menu", (route) =>
+  await page.route("**/api/v1/{menu,guest-sessions}", (route) =>
     route.fulfill({
       status: 404,
       json: { message: "QR geçersiz veya masa kapalı. Yeni QR kodunu okutun." },

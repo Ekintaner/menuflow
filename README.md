@@ -55,3 +55,20 @@ Service-role yalnız Worker'da dar `read_qr_menu` işlemi ve o sonucun görselle
 CI lint, derleme, Worker paketleme, birim/API, PostgreSQL, masaüstü/mobil Playwright ve yerel Supabase servis testlerini çalıştırır. Canlı dağıtım yapmaz. Pages `dist/` çıktısı ile aynı origin altında `/api/*` Worker rotası gerekir; SPA fallback API rotasından sonra çalışmalıdır. Canlı servis/ücretli plan oluşturulmadı.
 
 Plan ve aşama raporları `docs/` altındadır.
+
+## CODEX-004: güvenli müşteri siparişi
+
+`/menu#QR_TOKEN` ayrı, dört saatlik HttpOnly misafir oturumu açar. Müşteri sepete ürün ekler, adedi azaltarak çıkarır, not ekler ve görünür işletme/masa/toplamı onaylayarak gönderir. Menü sürümü değişirse güncel fiyatlarla yeniden onay gerekir. Belirsiz ağ sonucunda gönderim anahtarı ve değişmeyen sepet sekme oturumunda saklanır; yenileme sonrası aynı istek güvenle tekrarlanır. Sipariş kimlikleri de aynı sekmede takip için korunur; yetki yalnız sunucudaki cookie'den gelir.
+
+- `POST /api/v1/guest-sessions`: `{token}` → ayrı `mf_guest` cookie.
+- `GET /api/v1/menu`: misafir oturumunun menüsü, `version`, `ordering_enabled`.
+- `POST /api/v1/orders`: zorunlu `Idempotency-Key`; `{items:[{product_id,quantity}],version,session_id,note?}`. İlk oluşturma 201, aynı içeriğin tekrarı 200; farklı içerik 409.
+- `GET /api/v1/orders/{id}`: yalnız ilgili misafir oturumunun siparişi, kalemleri ve müşteriye uygun olaylar. Başka oturum/tenant için 404.
+
+Sipariş RPC'leri yalnız service_role ile çağrılabilir; public/anon/authenticated execute yetkileri kapalıdır. Tenant/masa/fiyat/durum/toplam istekten alınmaz. Menüden gelen `session_id`, cookie oturumuyla eşleşmek zorundadır; başka sekmede masa değişmesi eski sepeti yeni masaya gönderemez. PostgreSQL transaction'ı sipariş, snapshot kalemleri, ilk olay ve idempotency kaydını birlikte yazar. Oturum ve masa kilitleri tekrarları sıralar; ürün/kategori/ayar kilitleri güncel fiyat ve müsaitlik doğrulamasını korur. Tenant başına kabul modu okunur; varsayılan manuel, otomatik modda başlangıç `accepted` olur. Kalem güncellemesi veritabanında engellenir.
+
+Sınırlar: 30 farklı kalem, kalem başına 20 adet, 500 karakter not; oturum başına dakikada 3 yeni sipariş ve masa başına 30 yeni sipariş. Worker IP/oturum başına dakikada 30 gönderim denemesi sınırlar. Tekrar önleme kayıtları en az 24 saat tutulur; bu aşama silme görevi kurmaz. Misafir oturumu dört saatte sona erdiğinden eski anahtar başka oturuma taşınmaz. QR yenileme mevcut oturumu iptal eder; yalnız sipariş alımının kapanması veya masanın pasifleşmesi mevcut sipariş takibini kesmez.
+
+Yerel şema güncellemesi: `npx supabase migration up --local`. Doğrulama: `npm run test:db`, `npm test`, `npm run test:e2e`, `npm run test:integration`, `npm run lint`, `npm run build`, `npm run api:check`, `npm audit`, `npx supabase db advisors --local --type all --level warn --fail-on error`.
+
+Restoran sipariş paneli, durum değiştirme ve kabul ayarları arayüzü CODEX-005 kapsamındadır. Sipariş alımı mevcut güvenli veritabanı ayarıyla açılır; varsayılan kapalıdır. Canlı migration, deployment ve push bu aşamanın yerel tamamlanmasına dahil değildir.

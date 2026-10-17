@@ -31,15 +31,15 @@ select pg_temp.assert((select count(*)=13 from pg_class c join pg_namespace n on
 -- FK checks run as superuser, so RLS cannot mask a missing constraint.
 select pg_temp.denied($q$insert into products(tenant_id,category_id,name,price_minor) values('10000000-0000-0000-0000-000000000001','20000000-0000-0000-0000-000000000002','bad',1)$q$,'23503');
 select pg_temp.denied($q$update orders set table_id='20000000-0000-0000-0000-000000000002' where tenant_id='10000000-0000-0000-0000-000000000001'$q$,'23503');
-select pg_temp.denied($q$update order_items set product_id='20000000-0000-0000-0000-000000000002' where tenant_id='10000000-0000-0000-0000-000000000001'$q$,'23503');
-select pg_temp.denied($q$update order_items set quantity=0$q$,'23514');
+select pg_temp.denied($q$update order_items set product_id='20000000-0000-0000-0000-000000000002' where tenant_id='10000000-0000-0000-0000-000000000001'$q$,'P0001');
+select pg_temp.denied($q$update order_items set quantity=0$q$,'P0001');
 -- Exercise every tenant relationship under a privileged role: RLS cannot hide FK failures.
 do $$ declare fk record; begin
  for fk in select c.conrelid::regclass as child, a.attname as col
  from pg_constraint c join pg_attribute a on a.attrelid=c.conrelid and a.attnum=c.conkey[2]
  where c.contype='f' and c.connamespace='public'::regnamespace and array_length(c.conkey,1)>=2 loop
  perform pg_temp.denied(format('update %s set %I=%L where tenant_id=%L',fk.child,fk.col,
- '20000000-0000-0000-0000-000000000002','10000000-0000-0000-0000-000000000001'),'23503');
+ '20000000-0000-0000-0000-000000000002','10000000-0000-0000-0000-000000000001'),case when fk.child::text='order_items' then 'P0001' else '23503' end);
  end loop;
 end $$;
 set local role authenticated;

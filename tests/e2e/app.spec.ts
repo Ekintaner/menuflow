@@ -17,12 +17,14 @@ test("customer demo cart and admin navigation", async ({ page }) => {
   ).toBeVisible();
   await expect(page.getByLabel("E-posta")).toBeVisible();
 });
-test("same-origin API proxy and closed order endpoint", async ({ request }) => {
+test("same-origin API proxy and Origin protection for orders", async ({
+  request,
+}) => {
   const health = await request.get("/api/v1/health");
   expect(health.ok()).toBeTruthy();
   expect(await health.json()).toMatchObject({ status: "ok" });
   const order = await request.post("/api/v1/orders", {
     data: { tenant_id: "forged", total: 1 },
   });
-  expect(order.status()).toBe(404);
+  expect(order.status()).toBe(403);
 });

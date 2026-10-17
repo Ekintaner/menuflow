@@ -18,12 +18,6 @@ type Membership = {
   role: string;
   tenants: { name: string; currency: string };
 };
-type Menu = {
-  tenant: { name: string; currency: string };
-  table: { name: string };
-  categories: Row[];
-  products: (Row & { image_url?: string })[];
-};
 async function api(path: string, data?: unknown, method = "POST") {
   const response = await fetch(
     `/api/v1${path}`,
@@ -38,61 +32,6 @@ async function api(path: string, data?: unknown, method = "POST") {
   const result = await response.json();
   if (!response.ok) throw new Error(result.message || "İşlem tamamlanamadı.");
   return result;
-}
-export function CustomerMenu() {
-  const [qrToken] = useState(() => window.location.hash.slice(1));
-  const [menu, setMenu] = useState<Menu>(),
-    [error, setError] = useState("");
-  useEffect(() => {
-    const token = qrToken;
-    window.history.replaceState(null, "", window.location.pathname);
-    api("/menu", token ? { token } : undefined)
-      .then(setMenu)
-      .catch((e) => setError(e.message));
-  }, [qrToken]);
-  return (
-    <main className="mx-auto max-w-3xl p-6">
-      <a href="/">MenuFlow</a>
-      {error && <p role="alert">{error}</p>}
-      {!menu && !error && <p>Menü yükleniyor…</p>}
-      {menu && (
-        <>
-          <p className="eyebrow mt-6">
-            {menu.tenant.name} · {menu.table.name}
-          </p>
-          <h1>Menümüz</h1>
-          {menu.categories.map((c) => (
-            <section className="mt-8" key={c.id}>
-              <h2>{c.name}</h2>
-              {menu.products
-                .filter((p) => p.category_id === c.id)
-                .map((p) => (
-                  <article className="card my-3" key={p.id}>
-                    {p.image_url && (
-                      <img
-                        className="h-40 w-full object-cover rounded-lg"
-                        src={p.image_url}
-                        alt={p.name}
-                      />
-                    )}
-                    <h3>{p.name}</h3>
-                    <p>{p.description}</p>
-                    <strong>
-                      {new Intl.NumberFormat("tr-TR", {
-                        style: "currency",
-                        currency: menu.tenant.currency,
-                      }).format((p.price_minor ?? 0) / 100)}
-                    </strong>
-                    {!p.available && <p>Şu an mevcut değil</p>}
-                  </article>
-                ))}
-            </section>
-          ))}
-          <p className="mt-8">Sipariş vermek için çalışanımıza danışın.</p>
-        </>
-      )}
-    </main>
-  );
 }
 export function Management() {
   const [memberships, setMemberships] = useState<Membership[]>([]),

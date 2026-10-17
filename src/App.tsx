@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Management, CustomerMenu } from "./Management";
+import { Management } from "./Management";
+import { CustomerMenu } from "./CustomerMenu";
 const products = [
   {
     id: "coffee",

@@ -175,7 +175,7 @@ export async function management(
       "Set-Cookie": sessionCookie(request, "mf_admin", "", 0),
     });
   }
-  // CODEX-003 uses the QR solely as a read capability. Guest/order sessions belong to CODEX-004.
+  // Legacy CODEX-003 read-only menu capability; ordering always requires a separate guest session.
   if (path === "/api/v1/menu" && (method === "GET" || method === "POST")) {
     const token =
       method === "POST"

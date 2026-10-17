@@ -1,8 +1,12 @@
+import { guest } from "./guest";
 import { management, ApiError } from "./management";
 export interface Env {
   SUPABASE_URL?: string;
   SUPABASE_PUBLISHABLE_KEY?: string;
   SUPABASE_SERVICE_ROLE_KEY?: string;
+  ORDER_LIMIT?: {
+    limit(options: { key: string }): Promise<{ success: boolean }>;
+  };
   AUTH_LIMIT?: {
     limit(options: { key: string }): Promise<{ success: boolean }>;
   };
@@ -44,13 +48,21 @@ export async function fetchRequest(
       !path.startsWith("/api/v1/admin/orders")
     ) &&
     !path.startsWith("/api/v1/auth/") &&
-    path !== "/api/v1/menu"
+    path !== "/api/v1/menu" &&
+    path !== "/api/v1/guest-sessions" &&
+    !path.startsWith("/api/v1/orders")
   )
     return handleRequest(request);
   const requestId = crypto.randomUUID();
   let response: Response;
   try {
-    response = await management(request, env);
+    response = await (path === "/api/v1/guest-sessions" ||
+    path.startsWith("/api/v1/orders") ||
+    (path === "/api/v1/menu" &&
+      request.method === "GET" &&
+      request.headers.get("cookie")?.includes("mf_guest="))
+      ? guest(request, env)
+      : management(request, env));
   } catch (e) {
     const known = e instanceof ApiError;
     response = Response.json(
