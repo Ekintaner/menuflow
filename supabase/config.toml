@@ -1,0 +1,31 @@
+project_id = "menuflow-local"
+[api]
+enabled = true
+port = 55431
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+auto_expose_new_tables = false
+[db]
+port = 55432
+shadow_port = 55430
+major_version = 17
+[db.seed]
+enabled = false
+[studio]
+enabled = false
+[local_smtp]
+enabled = false
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:5198"
+additional_redirect_urls = []
+jwt_expiry = 3600
+enable_signup = false
+[storage]
+enabled = true
+file_size_limit = "300KiB"
+[analytics]
+enabled = false
+[edge_runtime]
+enabled = false

@@ -1,10 +1,10 @@
-# MenuFlow — CODEX-001
+# MenuFlow — CODEX-003
 
-React + Vite + TypeScript + Tailwind, Cloudflare Workers API ve Supabase bağlantı hazırlığı.
+Çok işletmeli QR menü: React/Vite arayüzü, Cloudflare Worker API, Supabase Auth/PostgreSQL/Storage.
 
-## Yerelde çalıştırma
+## Yerel geliştirme
 
-Node.js 24 ve npm gerekir. Kimlik bilgisi veya ücretli hesap gerekmez.
+Node.js 24, npm ve veritabanı testleri için Docker gerekir.
 
 ```sh
 npm ci
@@ -12,32 +12,46 @@ npx playwright install chromium
 npm run dev
 ```
 
-Müşteri: http://127.0.0.1:5198 — Yönetim: http://127.0.0.1:5198/admin
-API: http://127.0.0.1:8798/api/v1/health
+`/` CODEX-001 demo sepetidir; `/admin` gerçek yönetici girişidir; `/menu#TOKEN` masaya özel menüdür. Sipariş uçları CODEX-004'e kadar kapalıdır.
 
 ```sh
 npm run check
+npm run test:db
 npm run api:check
 ```
 
-Tüm ürünler ve masa bilgileri demo verisidir. Sepet bellekte tutulur; sipariş gönderimi kapalıdır. Yönetim sayfası yalnızca başlangıç iskeletidir, gerçek giriş veya yetkili veri göstermez.
+## Gerçek servislerle yerel test
 
-## Yapı
+Ayrı `menuflow-local` Supabase projesi 55431/55432 portlarını kullanır. Mevcut başka projelere bağlanmaz. İlk çalıştırma ücretsiz Docker imajlarını indirir.
 
-- `src/`: müşteri ve yönetim başlangıç ekranları
-- `worker/`: /api/v1 API sınırı ve kullanıcı JWT’siyle RLS koruyan Supabase istemci fabrikası
-- `tests/`: Vitest sınır testleri ve masaüstü/mobil Playwright akışları
-- `docs/CODEX-000.md`: özgün ürün ve güvenlik planı
-- `docs/ADR-001.md`: mimari ve ekran akışı
+```sh
+npx supabase start -x realtime,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
+npm run test:integration
+npx supabase db advisors --local --type all --level warn --fail-on error
+npx supabase migration list --local
+npx supabase stop
+```
 
-## Sırlar ve yayın
+Test rastgele yerel Auth kullanıcıları ve iki işletme açar; kendi oluşturduğu kayıtları temizler. Test yalnız `http://127.0.0.1:55431` adresini kabul eder. `supabase/tests/bootstrap.sql` yalnız ağsız PostgreSQL testinin Auth/Storage karşılığıdır; Supabase'e uygulanmaz. Gerçek servis testi bu taklidi kullanmaz.
 
-`.env*` ve `.dev.vars*` örnek dosyalar dışında Git tarafından dışlanır. İsteğe bağlı `.dev.vars.example` kopyası yalnızca yerelde `.dev.vars` olarak kullanılabilir. `VITE_` değişkenlerine sır koymayın. Service-role anahtarı kullanılmaz. Gerçek veritabanı bağlantısı ve RLS testleri CODEX-002 kapsamındadır.
+Arayüzü bu yerel servisle kullanmak için `.dev.vars.example` dosyasını `.dev.vars` olarak kopyalayın ve `supabase status` ile gösterilen **yerel** API URL, anon/publishable ve service-role değerlerini Worker değişkenlerine girin. Yönetim hesabı, tenant, owner üyeliği ve tenant_settings kontrollü olarak oluşturulur; genel kayıt kapalıdır. Sırlar `VITE_` değişkenlerine, Git'e veya tarayıcı depolamasına konulmaz.
 
-CI lint, tip kontrolü, build, birim ve tarayıcı testlerini çalıştırır; dağıtım yapmaz. GitHub Actions tüketimi hesabın ücretsiz kotasına tabidir. Yerel kontroller hesap gerektirmez.
+## Kullanım
 
-Planlanan yayın: Pages statik `dist/` çıktısı; aynı site altında `/api/*` Worker rotası. Pages SPA fallback ayarı API rotasından sonra değerlendirilmelidir. `workers_dev` kapalıdır. Bulut hesabı, kaynak veya dağıtım oluşturulmadı. GitHub push kullanıcı onayı gerektirir.
+Yönetici girişinden sonra işletmeyi seçin. Sahip kategori ve ürün oluşturup düzenleyebilir; sıra, arşiv ve müsaitlik ayarlayabilir. Fiyat para biriminde girilir ve kesin tam kuruşa çevrilir. PNG/JPEG/WebP görsel sınırı 300 KB'dır. Masa oluşturun, QR oluştur/yenile düğmesiyle PNG indirin ve menüyü yayımlayın. QR tek sefer gösterilir; yeniden üretmek eski baskıyı iptal eder. Yayımlanmış menüde sonraki değişiklikler hemen görünür.
 
-## CODEX-002 veritabanı
+Çalışanlar menü/masa kayıtlarını salt okunur görür. Sahip, kontrollü açılmış bir hesabın UUID'siyle çalışan ekler ve pasifleştirir. Sahip atama/devretme platform işlemidir. Oturum en fazla bir saat sürer; süresi dolduğunda tekrar giriş yapılır.
 
-Docker açıkken npm run test:db ile iki tenant izolasyon testleri çalıştırılır. Migration, yetki modeli ve sınırlar: [CODEX-002](docs/CODEX-002-results.md). Test bootstrap SQL dosyası üretime uygulanmaz.
+## Güvenlik ve yayın
+
+Yönetici istekleri sunucuda `getUser` ile doğrulanır, aktif üyelik her istekte veritabanından okunur; sorgular kullanıcı JWT'si ve tenant RLS ile çalışır. Cookie HttpOnly, SameSite=Strict ve HTTPS'te Secure'dür. Yazma isteklerinde aynı Origin zorunludur. Rate-limit bağları login ve QR okuma isteklerini sınırlar.
+
+256 bit QR token'ının yalnız SHA-256 özeti veritabanındadır. URL fragment'i menü isteğinden önce temizlenir. CODEX-003 menü cookie'si yalnız okuma yeteneğidir; misafir/sipariş oturumu değildir. Sipariş oluşturma, müşteri izolasyonu, atomik fiyat hesaplama ve idempotency CODEX-004'te yapılacaktır.
+
+Görseller özel Storage bucket'ındadır. Yazma/silme/okuma politikaları aktif sahibin tenant'ını denetler; müşteri yalnız doğrulanmış menüdeki görseller için beş dakikalık imzalı URL alır. QR iptali sonraki menü isteğinde etkilidir; önceden indirilmiş içerik geri alınamaz, verilmiş görsel URL'si en fazla beş dakika geçerlidir.
+
+Service-role yalnız Worker'da dar `read_qr_menu` işlemi ve o sonucun görsellerini imzalamak için kullanılır. Genel yükseltilmiş yetkili veri ucu yoktur. `private` şeması Supabase Data API'ye açılmamalıdır. `.dev.vars*`, `.env*`, test çıktıları ve yerel servis anahtarları Git'ten dışlanır.
+
+CI lint, derleme, Worker paketleme, birim/API, PostgreSQL, masaüstü/mobil Playwright ve yerel Supabase servis testlerini çalıştırır. Canlı dağıtım yapmaz. Pages `dist/` çıktısı ile aynı origin altında `/api/*` Worker rotası gerekir; SPA fallback API rotasından sonra çalışmalıdır. Canlı servis/ücretli plan oluşturulmadı.
+
+Plan ve aşama raporları `docs/` altındadır.

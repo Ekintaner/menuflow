@@ -13,9 +13,9 @@ test("customer demo cart and admin navigation", async ({ page }) => {
   ).toBeDisabled();
   await page.getByRole("link", { name: "Yönetim" }).click();
   await expect(
-    page.getByRole("heading", { name: "Aktif siparişler" }),
+    page.getByRole("heading", { name: "Yönetici girişi" }),
   ).toBeVisible();
-  await expect(page.getByText("Henüz sipariş yok.")).toBeVisible();
+  await expect(page.getByLabel("E-posta")).toBeVisible();
 });
 test("same-origin API proxy and closed order endpoint", async ({ request }) => {
   const health = await request.get("/api/v1/health");

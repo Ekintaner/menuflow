@@ -18,4 +18,5 @@ try {
  sql('supabase/tests/bootstrap.sql');
  for(const file of readdirSync('supabase/migrations').filter(f=>f.endsWith('.sql')).sort()) sql(`supabase/migrations/${file}`);
  console.log(sql('supabase/tests/isolation.sql'));
+ console.log(sql('supabase/tests/menu.sql'));
 } finally { docker(['rm','-f',container]); }

@@ -1,6 +1,14 @@
+import { management, ApiError } from "./management";
 export interface Env {
   SUPABASE_URL?: string;
   SUPABASE_PUBLISHABLE_KEY?: string;
+  SUPABASE_SERVICE_ROLE_KEY?: string;
+  AUTH_LIMIT?: {
+    limit(options: { key: string }): Promise<{ success: boolean }>;
+  };
+  MENU_LIMIT?: {
+    limit(options: { key: string }): Promise<{ success: boolean }>;
+  };
 }
 export function handleRequest(request: Request): Response {
   const path = new URL(request.url).pathname;
@@ -25,4 +33,40 @@ export function handleRequest(request: Request): Response {
     { status: 404, headers },
   );
 }
-export default { fetch: handleRequest };
+export async function fetchRequest(
+  request: Request,
+  env: Env = {},
+): Promise<Response> {
+  const path = new URL(request.url).pathname;
+  if (
+    !(
+      path.startsWith("/api/v1/admin/") &&
+      !path.startsWith("/api/v1/admin/orders")
+    ) &&
+    !path.startsWith("/api/v1/auth/") &&
+    path !== "/api/v1/menu"
+  )
+    return handleRequest(request);
+  const requestId = crypto.randomUUID();
+  let response: Response;
+  try {
+    response = await management(request, env);
+  } catch (e) {
+    const known = e instanceof ApiError;
+    response = Response.json(
+      {
+        code: known ? e.code : "SERVICE_UNAVAILABLE",
+        message: known ? e.message : "Servis şu anda kullanılamıyor.",
+        request_id: requestId,
+      },
+      { status: known ? e.status : 503 },
+    );
+  }
+  response.headers.set("Cache-Control", "no-store");
+  response.headers.set("Referrer-Policy", "no-referrer");
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("X-Request-Id", requestId);
+  if (response.status === 429) response.headers.set("Retry-After", "60");
+  return response;
+}
+export default { fetch: fetchRequest };

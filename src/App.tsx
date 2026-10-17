@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Management, CustomerMenu } from "./Management";
 const products = [
   {
     id: "coffee",
@@ -20,6 +21,8 @@ const money = (value: number) =>
 export default function App() {
   const admin = location.pathname.startsWith("/admin");
   const [cart, setCart] = useState<Record<string, number>>({});
+  if (admin) return <Management />;
+  if (location.pathname === "/menu") return <CustomerMenu />;
   return (
     <main className="mx-auto max-w-5xl px-5 py-8">
       <header className="mb-12 flex items-center justify-between">

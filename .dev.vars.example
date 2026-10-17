@@ -1,3 +1,4 @@
-# Optional. Local demo works without these. Never add elevated keys.
+# Worker only. Never use VITE_ prefixes or commit actual values.
 SUPABASE_URL=
 SUPABASE_PUBLISHABLE_KEY=
+SUPABASE_SERVICE_ROLE_KEY=

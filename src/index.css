@@ -17,8 +17,19 @@
     @apply cursor-not-allowed bg-stone-300;
   }
   a:focus-visible,
-  button:focus-visible {
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
     @apply outline-2 outline-offset-4 outline-orange-600;
+  }
+  label {
+    @apply block text-sm;
+  }
+  input:not([type="checkbox"]),
+  select,
+  textarea {
+    @apply block w-full rounded-lg border border-stone-300 bg-white p-2 my-2;
   }
 }
 @layer components {

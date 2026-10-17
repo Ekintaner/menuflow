@@ -47,7 +47,9 @@ select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000001'
 do $$ declare tab text; n int; begin
  foreach tab in array array['tenants','tenant_settings','dining_tables','categories','products','orders','order_items','order_events','audit_logs'] loop
  execute format('select count(*) from public.%I',tab) into n;
- perform pg_temp.assert(n=1,'owner A only sees A: '||tab);
+ if tab='audit_logs' then
+ perform pg_temp.assert(n>=1 and not exists(select 1 from audit_logs where tenant_id<>'10000000-0000-0000-0000-000000000001'),'owner A audit isolation');
+ else perform pg_temp.assert(n=1,'owner A only sees A: '||tab); end if;
  end loop;
  foreach tab in array array['table_qr_tokens','guest_sessions','idempotency_records'] loop
  perform pg_temp.denied(format('select * from public.%I',tab),'42501');
