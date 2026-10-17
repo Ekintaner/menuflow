@@ -1,4 +1,4 @@
-# MenuFlow — CODEX-003
+# MenuFlow — CODEX-005
 
 Çok işletmeli QR menü: React/Vite arayüzü, Cloudflare Worker API, Supabase Auth/PostgreSQL/Storage.
 
@@ -12,7 +12,7 @@ npx playwright install chromium
 npm run dev
 ```
 
-`/` CODEX-001 demo sepetidir; `/admin` gerçek yönetici girişidir; `/menu#TOKEN` masaya özel menüdür. Sipariş uçları CODEX-004'e kadar kapalıdır.
+`/` CODEX-001 demo sepetidir; `/admin` gerçek yönetici girişidir; `/menu#TOKEN` masaya özel menüdür. Misafir sipariş akışı ve tenant yetkili sipariş paneli çalışır.
 
 ```sh
 npm run check
@@ -46,11 +46,11 @@ Yönetici girişinden sonra işletmeyi seçin. Sahip kategori ve ürün oluştur
 
 Yönetici istekleri sunucuda `getUser` ile doğrulanır, aktif üyelik her istekte veritabanından okunur; sorgular kullanıcı JWT'si ve tenant RLS ile çalışır. Cookie HttpOnly, SameSite=Strict ve HTTPS'te Secure'dür. Yazma isteklerinde aynı Origin zorunludur. Rate-limit bağları login ve QR okuma isteklerini sınırlar.
 
-256 bit QR token'ının yalnız SHA-256 özeti veritabanındadır. URL fragment'i menü isteğinden önce temizlenir. CODEX-003 menü cookie'si yalnız okuma yeteneğidir; misafir/sipariş oturumu değildir. Sipariş oluşturma, müşteri izolasyonu, atomik fiyat hesaplama ve idempotency CODEX-004'te yapılacaktır.
+256 bit QR token'ının yalnız SHA-256 özeti veritabanındadır. URL fragment'i menü isteğinden önce temizlenir. CODEX-003 menü cookie'si yalnız okuma yeteneğidir; misafir/sipariş oturumu değildir. Sipariş oluşturma, müşteri izolasyonu, atomik fiyat hesaplama ve idempotency CODEX-004 ile tamamlanmıştır.
 
 Görseller özel Storage bucket'ındadır. Yazma/silme/okuma politikaları aktif sahibin tenant'ını denetler; müşteri yalnız doğrulanmış menüdeki görseller için beş dakikalık imzalı URL alır. QR iptali sonraki menü isteğinde etkilidir; önceden indirilmiş içerik geri alınamaz, verilmiş görsel URL'si en fazla beş dakika geçerlidir.
 
-Service-role yalnız Worker'da dar `read_qr_menu` işlemi ve o sonucun görsellerini imzalamak için kullanılır. Genel yükseltilmiş yetkili veri ucu yoktur. `private` şeması Supabase Data API'ye açılmamalıdır. `.dev.vars*`, `.env*`, test çıktıları ve yerel servis anahtarları Git'ten dışlanır.
+Service-role yalnız Worker'da dar QR/menü/misafir sipariş RPC işlemleri ve menü görsellerini imzalamak için kullanılır. Genel yükseltilmiş yetkili veri ucu yoktur. `private` şeması Supabase Data API'ye açılmamalıdır. `.dev.vars*`, `.env*`, test çıktıları ve yerel servis anahtarları Git'ten dışlanır.
 
 CI lint, derleme, Worker paketleme, birim/API, PostgreSQL, masaüstü/mobil Playwright ve yerel Supabase servis testlerini çalıştırır. Canlı dağıtım yapmaz. Pages `dist/` çıktısı ile aynı origin altında `/api/*` Worker rotası gerekir; SPA fallback API rotasından sonra çalışmalıdır. Canlı servis/ücretli plan oluşturulmadı.
 
@@ -71,4 +71,20 @@ Sınırlar: 30 farklı kalem, kalem başına 20 adet, 500 karakter not; oturum b
 
 Yerel şema güncellemesi: `npx supabase migration up --local`. Doğrulama: `npm run test:db`, `npm test`, `npm run test:e2e`, `npm run test:integration`, `npm run lint`, `npm run build`, `npm run api:check`, `npm audit`, `npx supabase db advisors --local --type all --level warn --fail-on error`.
 
-Restoran sipariş paneli, durum değiştirme ve kabul ayarları arayüzü CODEX-005 kapsamındadır. Sipariş alımı mevcut güvenli veritabanı ayarıyla açılır; varsayılan kapalıdır. Canlı migration, deployment ve push bu aşamanın yerel tamamlanmasına dahil değildir.
+Sipariş alımı varsayılan kapalıdır; işletme sahibi CODEX-005 panelinden açabilir. Canlı migration ve deployment ayrı adımlardır.
+
+
+## CODEX-005: restoran sipariş paneli
+
+`/admin` → **Siparişler**. Sahip ve çalışan, yalnız aktif üyeliği olan işletmenin siparişlerini masa bazında görür; durum, masa ve başlangıç/bitiş tarihine göre filtreler. Tarih alanları tarayıcının yerel saatinden UTC'ye çevrilir; bitiş hariçtir. Aktif/geçmiş listeleri ve ayrıntıdaki olay geçmişi desteklenir. Listeler varsayılan 25, en fazla 100 kayıt; `(created_at,id)` cursor sayfalaması kullanır.
+
+- `GET /api/v1/admin/orders?tenant=UUID&status=active|history|all|STATUS&table=UUID&from=ISO&to=ISO&limit=25&cursor=...`
+- `GET /api/v1/admin/orders/{id}?tenant=UUID`
+- `POST /api/v1/admin/orders/{id}/transitions?tenant=UUID`: `{version,status,reason?}`. Ret/iptalde gerekçe zorunludur. İzin verilen geçişler CODEX-000 durum makinesiyle aynıdır; terminal sipariş yeniden açılamaz.
+- `GET /api/v1/admin/settings?tenant=UUID`; yalnız sahip `PATCH` ile `{version,acceptance_mode:"manual"|"automatic",ordering_enabled:boolean}` gönderir.
+
+Sürüm uyuşmazlığı veya yasak geçiş 409; başka işletmedeki sipariş ayrıntısı 404; aktif üyelik yoksa 403 döner. Sipariş UPDATE kilidi ve canlı üyelik kontrolü, aynı sürüme eşzamanlı iki kararın yalnız birini kabul eder. Durum/sürüm, aktör ve gerekçeli olay, hassas içerik taşımayan denetim kaydı tek transaction'dır. Order tablolarına doğrudan istemci yazması kapalı kalır; özel şemadaki dar yetkili fonksiyon yalnız aktif owner/staff için çalışır. Okumalar kullanıcı JWT'si ve RLS kullanır.
+
+Ayarlar beklenen sürümle güncellenir; sürümü veritabanı trigger'ı artırır ve değişiklikleri denetler. Yeni sipariş ayar satırını kilitleyerek o andaki modu kaydeder. Otomatik kabul `accepted` oluşturur, hazırlığa geçirmez; önceki siparişlere uygulanmaz. QR fiziksel konumu kanıtlamadığı için bu davranış ayar formunda açıklanır.
+
+Görünür sekmede tamamlanan istekten 5 saniye sonra polling yapılır; gizli sekmede ağ isteği gönderilmez ve 30 saniyelik kontrol aralığı kullanılır. Yetki/oturum kaybında liste temizlenir ve polling durur. Ret/iptal, uzun bekleme uyarısı, çakışma sonrası güncel liste, geçmiş ve manuel yenileme desteklenir. Sesli bildirim bu aşamada eklenmedi. Misafirin kendi sipariş takibi aynı order/event kayıtlarından ilerler.

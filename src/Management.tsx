@@ -1,3 +1,4 @@
+import { OrderPanel } from "./OrderPanel";
 import { useEffect, useState, type FormEvent } from "react";
 import QRCode from "qrcode";
 type Row = {
@@ -71,7 +72,7 @@ export function Management() {
     };
   }, []);
   useEffect(() => {
-    if (!tenant) return;
+    if (!tenant || resource === "orders") return;
     let current = true;
     Promise.all([
       api(`/admin/${resource}?tenant=${tenant}`),
@@ -238,6 +239,7 @@ export function Management() {
                 aria-label="Yönetim bölümleri"
               >
                 {[
+                  ["orders", "Siparişler"],
                   ["categories", "Kategoriler"],
                   ["products", "Ürünler"],
                   ["tables", "Masalar"],
@@ -258,291 +260,310 @@ export function Management() {
                   </button>
                 ))}
               </nav>
-              {owner && (
-                <div className="my-5 flex gap-3">
-                  <button
-                    disabled={busy}
-                    onClick={() =>
-                      run(async () => {
-                        await api(endpoint("publish"), { published: true });
-                        setNotice("Menü yayımlandı.");
-                      })
-                    }
-                  >
-                    Menüyü yayımla
-                  </button>
-                  <button
-                    disabled={busy}
-                    onClick={() =>
-                      run(async () => {
-                        await api(endpoint("publish"), { published: false });
-                        setNotice("Menü yayından kaldırıldı.");
-                      })
-                    }
-                  >
-                    Yayından kaldır
-                  </button>
-                </div>
-              )}
-              <section className="my-6 space-y-3" aria-label="Kayıtlar">
-                {rows.map((row) => (
-                  <article key={row.id} className="card">
-                    <h2>{row.name || row.user_id}</h2>
-                    <p>
-                      {row.archived_at
-                        ? "Arşivde"
-                        : row.active === false
-                          ? "Pasif"
-                          : ""}
-                    </p>
-                    {resource === "products" && (
-                      <p>
-                        {new Intl.NumberFormat("tr-TR", {
-                          style: "currency",
-                          currency:
-                            memberships.find((m) => m.tenant_id === tenant)
-                              ?.tenants.currency || "TRY",
-                        }).format((row.price_minor ?? 0) / 100)}{" "}
-                        · {row.available ? "Mevcut" : "Mevcut değil"}
-                      </p>
-                    )}
-                    {owner &&
-                      (resource !== "staff" || row.role === "staff") && (
-                        <button disabled={busy} onClick={() => setEditing(row)}>
-                          Düzenle {row.name || row.user_id}
-                        </button>
-                      )}
-                    {owner && resource === "tables" && row.active && (
+              {resource === "orders" ? (
+                <OrderPanel key={tenant} tenant={tenant} owner={owner} />
+              ) : (
+                <>
+                  {owner && (
+                    <div className="my-5 flex gap-3">
                       <button
-                        className="ml-3"
                         disabled={busy}
                         onClick={() =>
                           run(async () => {
-                            const result = await api(
-                              `/admin/tables/${row.id}/qr?tenant=${tenant}`,
-                              {},
-                            );
-                            setQrUrl(result.url);
-                            setQr(
-                              await QRCode.toDataURL(result.url, {
-                                width: 512,
-                                margin: 4,
-                              }),
-                            );
-                            setNotice(
-                              "QR yenilendi. Önceki baskı artık geçersiz.",
-                            );
+                            await api(endpoint("publish"), { published: true });
+                            setNotice("Menü yayımlandı.");
                           })
                         }
                       >
-                        QR oluştur / yenile {row.name}
+                        Menüyü yayımla
                       </button>
-                    )}
-                    {owner && resource === "products" && (
-                      <>
-                        <label className="mt-4">
-                          Görsel yükle {row.name}
-                          <input
-                            type="file"
-                            accept="image/png,image/jpeg,image/webp"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file)
+                      <button
+                        disabled={busy}
+                        onClick={() =>
+                          run(async () => {
+                            await api(endpoint("publish"), {
+                              published: false,
+                            });
+                            setNotice("Menü yayından kaldırıldı.");
+                          })
+                        }
+                      >
+                        Yayından kaldır
+                      </button>
+                    </div>
+                  )}
+                  <section className="my-6 space-y-3" aria-label="Kayıtlar">
+                    {rows.map((row) => (
+                      <article key={row.id} className="card">
+                        <h2>{row.name || row.user_id}</h2>
+                        <p>
+                          {row.archived_at
+                            ? "Arşivde"
+                            : row.active === false
+                              ? "Pasif"
+                              : ""}
+                        </p>
+                        {resource === "products" && (
+                          <p>
+                            {new Intl.NumberFormat("tr-TR", {
+                              style: "currency",
+                              currency:
+                                memberships.find((m) => m.tenant_id === tenant)
+                                  ?.tenants.currency || "TRY",
+                            }).format((row.price_minor ?? 0) / 100)}{" "}
+                            · {row.available ? "Mevcut" : "Mevcut değil"}
+                          </p>
+                        )}
+                        {owner &&
+                          (resource !== "staff" || row.role === "staff") && (
+                            <button
+                              disabled={busy}
+                              onClick={() => setEditing(row)}
+                            >
+                              Düzenle {row.name || row.user_id}
+                            </button>
+                          )}
+                        {owner && resource === "tables" && row.active && (
+                          <button
+                            className="ml-3"
+                            disabled={busy}
+                            onClick={() =>
+                              run(async () => {
+                                const result = await api(
+                                  `/admin/tables/${row.id}/qr?tenant=${tenant}`,
+                                  {},
+                                );
+                                setQrUrl(result.url);
+                                setQr(
+                                  await QRCode.toDataURL(result.url, {
+                                    width: 512,
+                                    margin: 4,
+                                  }),
+                                );
+                                setNotice(
+                                  "QR yenilendi. Önceki baskı artık geçersiz.",
+                                );
+                              })
+                            }
+                          >
+                            QR oluştur / yenile {row.name}
+                          </button>
+                        )}
+                        {owner && resource === "products" && (
+                          <>
+                            <label className="mt-4">
+                              Görsel yükle {row.name}
+                              <input
+                                type="file"
+                                accept="image/png,image/jpeg,image/webp"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file)
+                                    run(async () => {
+                                      const response = await fetch(
+                                        `/api/v1/admin/products/${row.id}/image?tenant=${tenant}`,
+                                        {
+                                          method: "POST",
+                                          headers: {
+                                            "Content-Type": file.type,
+                                          },
+                                          body: file,
+                                        },
+                                      );
+                                      if (!response.ok)
+                                        throw new Error(
+                                          (await response.json()).message,
+                                        );
+                                      setNotice("Görsel kaydedildi.");
+                                    });
+                                }}
+                              />
+                            </label>
+                            <button
+                              disabled={busy}
+                              onClick={() =>
                                 run(async () => {
-                                  const response = await fetch(
-                                    `/api/v1/admin/products/${row.id}/image?tenant=${tenant}`,
-                                    {
-                                      method: "POST",
-                                      headers: { "Content-Type": file.type },
-                                      body: file,
-                                    },
+                                  await api(
+                                    `/admin/products/${row.id}?tenant=${tenant}`,
+                                    { remove_image: true },
+                                    "PATCH",
                                   );
-                                  if (!response.ok)
-                                    throw new Error(
-                                      (await response.json()).message,
-                                    );
-                                  setNotice("Görsel kaydedildi.");
-                                });
-                            }}
-                          />
-                        </label>
-                        <button
-                          disabled={busy}
-                          onClick={() =>
-                            run(async () => {
-                              await api(
-                                `/admin/products/${row.id}?tenant=${tenant}`,
-                                { remove_image: true },
-                                "PATCH",
-                              );
-                              setNotice("Görsel kaldırıldı.");
-                            })
-                          }
-                        >
-                          Görseli kaldır {row.name}
-                        </button>
-                      </>
-                    )}
-                  </article>
-                ))}
-              </section>
-              {qr && (
-                <section className="card">
-                  <h2>Masa QR kodu</h2>
-                  <img width="256" height="256" src={qr} alt="Masaya özel QR" />
-                  <a download="menuflow-qr.png" href={qr}>
-                    QR indir
-                  </a>
-                  <p>
-                    <a href={qrUrl} target="_blank" rel="noreferrer">
-                      Masa menüsünü aç
-                    </a>
-                  </p>
-                  <p>
-                    Bu QR yalnızca şimdi indirilebilir. Yenileme eski baskıyı
-                    geçersiz kılar.
-                  </p>
-                </section>
-              )}
-              {owner && (
-                <form
-                  key={`${resource}-${editing?.id ?? "new"}`}
-                  className="card my-6 space-y-4"
-                  onSubmit={save}
-                >
-                  <h2>{editing ? "Kaydı düzenle" : "Yeni kayıt"}</h2>
-                  {resource === "staff" ? (
-                    <>
-                      {!editing && (
-                        <label>
-                          Mevcut kullanıcı UUID
-                          <input name="user_id" required />
-                        </label>
-                      )}
-                      {editing && (
-                        <label>
-                          <input
-                            name="active"
-                            type="checkbox"
-                            defaultChecked={editing.active}
-                          />
-                          Aktif çalışan
-                        </label>
-                      )}
-                      <p>Sahip ataması kontrollü platform işlemidir.</p>
-                    </>
-                  ) : (
-                    <>
-                      <label>
-                        Ad
-                        <input
-                          name="name"
-                          required
-                          maxLength={
-                            resource === "products"
-                              ? 160
-                              : resource === "tables"
-                                ? 80
-                                : 120
-                          }
-                          defaultValue={editing?.name}
-                        />
-                      </label>
-                      {resource === "tables" ? (
-                        <label>
-                          <input
-                            type="checkbox"
-                            name="active"
-                            defaultChecked={editing?.active ?? true}
-                          />
-                          Aktif masa
-                        </label>
+                                  setNotice("Görsel kaldırıldı.");
+                                })
+                              }
+                            >
+                              Görseli kaldır {row.name}
+                            </button>
+                          </>
+                        )}
+                      </article>
+                    ))}
+                  </section>
+                  {qr && (
+                    <section className="card">
+                      <h2>Masa QR kodu</h2>
+                      <img
+                        width="256"
+                        height="256"
+                        src={qr}
+                        alt="Masaya özel QR"
+                      />
+                      <a download="menuflow-qr.png" href={qr}>
+                        QR indir
+                      </a>
+                      <p>
+                        <a href={qrUrl} target="_blank" rel="noreferrer">
+                          Masa menüsünü aç
+                        </a>
+                      </p>
+                      <p>
+                        Bu QR yalnızca şimdi indirilebilir. Yenileme eski
+                        baskıyı geçersiz kılar.
+                      </p>
+                    </section>
+                  )}
+                  {owner && (
+                    <form
+                      key={`${resource}-${editing?.id ?? "new"}`}
+                      className="card my-6 space-y-4"
+                      onSubmit={save}
+                    >
+                      <h2>{editing ? "Kaydı düzenle" : "Yeni kayıt"}</h2>
+                      {resource === "staff" ? (
+                        <>
+                          {!editing && (
+                            <label>
+                              Mevcut kullanıcı UUID
+                              <input name="user_id" required />
+                            </label>
+                          )}
+                          {editing && (
+                            <label>
+                              <input
+                                name="active"
+                                type="checkbox"
+                                defaultChecked={editing.active}
+                              />
+                              Aktif çalışan
+                            </label>
+                          )}
+                          <p>Sahip ataması kontrollü platform işlemidir.</p>
+                        </>
                       ) : (
                         <>
                           <label>
-                            Sıra
+                            Ad
                             <input
-                              name="sort_order"
-                              type="number"
-                              step="1"
-                              min="-100000"
-                              max="100000"
-                              defaultValue={editing?.sort_order ?? 0}
+                              name="name"
+                              required
+                              maxLength={
+                                resource === "products"
+                                  ? 160
+                                  : resource === "tables"
+                                    ? 80
+                                    : 120
+                              }
+                              defaultValue={editing?.name}
                             />
                           </label>
-                          <label>
-                            <input
-                              type="checkbox"
-                              name="archived"
-                              defaultChecked={!!editing?.archived_at}
-                            />
-                            Arşivle
-                          </label>
+                          {resource === "tables" ? (
+                            <label>
+                              <input
+                                type="checkbox"
+                                name="active"
+                                defaultChecked={editing?.active ?? true}
+                              />
+                              Aktif masa
+                            </label>
+                          ) : (
+                            <>
+                              <label>
+                                Sıra
+                                <input
+                                  name="sort_order"
+                                  type="number"
+                                  step="1"
+                                  min="-100000"
+                                  max="100000"
+                                  defaultValue={editing?.sort_order ?? 0}
+                                />
+                              </label>
+                              <label>
+                                <input
+                                  type="checkbox"
+                                  name="archived"
+                                  defaultChecked={!!editing?.archived_at}
+                                />
+                                Arşivle
+                              </label>
+                            </>
+                          )}
+                          {resource === "products" && (
+                            <>
+                              <label>
+                                Kategori
+                                <select
+                                  name="category_id"
+                                  required
+                                  defaultValue={editing?.category_id}
+                                >
+                                  {categories.map((c) => (
+                                    <option value={c.id} key={c.id}>
+                                      {c.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                              <label>
+                                Açıklama
+                                <textarea
+                                  name="description"
+                                  maxLength={2000}
+                                  defaultValue={editing?.description}
+                                />
+                              </label>
+                              <label>
+                                Fiyat (
+                                {
+                                  memberships.find(
+                                    (m) => m.tenant_id === tenant,
+                                  )?.tenants.currency
+                                }
+                                )
+                                <input
+                                  name="price"
+                                  inputMode="decimal"
+                                  required
+                                  defaultValue={(
+                                    (editing?.price_minor ?? 0) / 100
+                                  ).toFixed(2)}
+                                />
+                              </label>
+                              <label>
+                                <input
+                                  type="checkbox"
+                                  name="available"
+                                  defaultChecked={editing?.available ?? true}
+                                />
+                                Ürün mevcut
+                              </label>
+                            </>
+                          )}
                         </>
                       )}
-                      {resource === "products" && (
-                        <>
-                          <label>
-                            Kategori
-                            <select
-                              name="category_id"
-                              required
-                              defaultValue={editing?.category_id}
-                            >
-                              {categories.map((c) => (
-                                <option value={c.id} key={c.id}>
-                                  {c.name}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                          <label>
-                            Açıklama
-                            <textarea
-                              name="description"
-                              maxLength={2000}
-                              defaultValue={editing?.description}
-                            />
-                          </label>
-                          <label>
-                            Fiyat (
-                            {
-                              memberships.find((m) => m.tenant_id === tenant)
-                                ?.tenants.currency
-                            }
-                            )
-                            <input
-                              name="price"
-                              inputMode="decimal"
-                              required
-                              defaultValue={(
-                                (editing?.price_minor ?? 0) / 100
-                              ).toFixed(2)}
-                            />
-                          </label>
-                          <label>
-                            <input
-                              type="checkbox"
-                              name="available"
-                              defaultChecked={editing?.available ?? true}
-                            />
-                            Ürün mevcut
-                          </label>
-                        </>
+                      <button disabled={busy}>Kaydet</button>
+                      {editing && (
+                        <button
+                          type="button"
+                          className="ml-3"
+                          onClick={() => setEditing(undefined)}
+                        >
+                          Vazgeç
+                        </button>
                       )}
-                    </>
+                    </form>
                   )}
-                  <button disabled={busy}>Kaydet</button>
-                  {editing && (
-                    <button
-                      type="button"
-                      className="ml-3"
-                      onClick={() => setEditing(undefined)}
-                    >
-                      Vazgeç
-                    </button>
-                  )}
-                </form>
+                </>
               )}
               {!owner && (
                 <p>Çalışan hesabı: menü ve masa kayıtları salt okunur.</p>

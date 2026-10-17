@@ -225,6 +225,201 @@ it("real Auth → owner menu/image/table → QR → tenant isolation → revocat
       })
     ).status,
   ).toBe(409);
+  // CODEX-005: real user-scoped PostgREST/RPC reads and competing writes.
+  const orderId = orders[0].id;
+  const listPath = `/admin/orders?tenant=${tenantA}`;
+  let list = await (await api(listPath, staff)).json();
+  expect(list.items.map((o: { id: string }) => o.id)).toEqual([orderId]);
+  expect(list.items[0].guest_session_id).toBeUndefined();
+  expect(list.items[0].dining_tables.name).toBe("Table 9");
+  expect((await api(listPath, other)).status).toBe(403);
+  expect(
+    (await api(`/admin/orders/${orderId}?tenant=${tenantB}`, other)).status,
+  ).toBe(404);
+  expect(
+    (await api(`/admin/orders/${orderId}?tenant=${tenantA}`, guest)).status,
+  ).toBe(401);
+  const transitionPath = `/admin/orders/${orderId}/transitions?tenant=${tenantA}`;
+  expect(
+    (await api(transitionPath, staff, { version: 1, status: "rejected" }))
+      .status,
+  ).toBe(422);
+  const competing = await Promise.all([
+    api(transitionPath, staff, { version: 1, status: "accepted" }),
+    api(transitionPath, owner, {
+      version: 1,
+      status: "rejected",
+      reason: "Competing decision",
+    }),
+  ]);
+  expect(competing.map((r) => r.status).sort()).toEqual([200, 409]);
+  let state = await (await api(`/orders/${orderId}`, guest)).json();
+  expect(state.version).toBe(2);
+  expect(state.events).toHaveLength(2);
+  const detail = await (
+    await api(`/admin/orders/${orderId}?tenant=${tenantA}`, staff)
+  ).json();
+  expect(detail.order_events).toHaveLength(2);
+  expect(
+    detail.order_events.filter((e: { actor_id: string }) => e.actor_id),
+  ).toHaveLength(1);
+  expect(
+    (await api(transitionPath, staff, { version: 2, status: "served" })).status,
+  ).toBe(409);
+  if (state.status === "accepted") {
+    for (const [version, status] of [
+      [2, "preparing"],
+      [3, "ready"],
+      [4, "served"],
+    ]) {
+      expect(
+        (await api(transitionPath, staff, { version, status })).status,
+      ).toBe(200);
+      state = await (await api(`/orders/${orderId}`, guest)).json();
+      expect(state.status).toBe(status);
+      expect(state.version).toBe(Number(version) + 1);
+    }
+  }
+  expect(
+    (
+      await api(transitionPath, owner, {
+        version: state.version,
+        status: "accepted",
+      })
+    ).status,
+  ).toBe(409);
+  expect(
+    (await (await api(listPath + "&status=history", staff)).json()).items,
+  ).toHaveLength(1);
+  expect(
+    (await (await api(listPath + "&table=" + tenantB, staff)).json()).items,
+  ).toHaveLength(0);
+  expect(
+    (await (await api(listPath + "&from=2099-01-01T00:00:00Z", staff)).json())
+      .items,
+  ).toHaveLength(0);
+  const settingsPath = `/admin/settings?tenant=${tenantA}`;
+  const settings = await (await api(settingsPath, owner)).json();
+  const changedSettings = {
+    version: settings.version,
+    acceptance_mode: "automatic",
+    ordering_enabled: true,
+  };
+  expect(
+    (await api(settingsPath, staff, changedSettings, "PATCH")).status,
+  ).toBe(403);
+  const settingsRace = await Promise.all([
+    api(settingsPath, owner, changedSettings, "PATCH"),
+    api(
+      settingsPath,
+      owner,
+      { ...changedSettings, ordering_enabled: false },
+      "PATCH",
+    ),
+  ]);
+  expect(settingsRace.map((r) => r.status).sort()).toEqual([200, 409]);
+  const freshSettings = await (await api(settingsPath, owner)).json();
+  expect(
+    (
+      await api(
+        settingsPath,
+        owner,
+        { ...freshSettings, ordering_enabled: true },
+        "PATCH",
+      )
+    ).status,
+  ).toBe(200);
+  const secondMenu = await (await api("/menu", guest2)).json();
+  const automatic = await (
+    await api("/orders", guest2, {
+      ...orderPayload,
+      session_id: secondMenu.session_id,
+      version: secondMenu.version,
+    })
+  ).json();
+  expect(automatic.status).toBe("accepted");
+  for (const [version, status] of [
+    [1, "preparing"],
+    [2, "ready"],
+    [3, "served"],
+  ]) {
+    expect(
+      (
+        await api(
+          `/admin/orders/${automatic.id}/transitions?tenant=${tenantA}`,
+          staff,
+          { version, status },
+        )
+      ).status,
+    ).toBe(200);
+    const tracked = await (await api(`/orders/${automatic.id}`, guest2)).json();
+    expect(tracked.status).toBe(status);
+    expect(tracked.version).toBe(Number(version) + 1);
+    expect(
+      tracked.events.every(
+        (event: Record<string, unknown>) =>
+          !("actor_id" in event) && !("reason" in event),
+      ),
+    ).toBe(true);
+  }
+
+  expect(
+    (
+      await (
+        await api(`/admin/orders/${orderId}?tenant=${tenantA}`, staff)
+      ).json()
+    ).acceptance_mode,
+  ).toBe("manual");
+  list = await (await api(listPath + "&status=all&limit=1", staff)).json();
+  expect(list.items).toHaveLength(1);
+  expect(list.next_cursor).toBeTruthy();
+  const nextPage = await (
+    await api(
+      listPath +
+        "&status=all&limit=1&cursor=" +
+        encodeURIComponent(list.next_cursor),
+      staff,
+    )
+  ).json();
+  expect(nextPage.items).toHaveLength(1);
+  expect(nextPage.items[0].id).not.toBe(list.items[0].id);
+  const staffDb = createClient(
+    env.SUPABASE_URL!,
+    env.SUPABASE_PUBLISHABLE_KEY!,
+    {
+      global: {
+        headers: { authorization: `Bearer ${staff.slice("mf_admin=".length)}` },
+      },
+      auth: { persistSession: false, autoRefreshToken: false },
+    },
+  );
+  expect(
+    (
+      await staffDb
+        .from("orders")
+        .update({ status: "served" })
+        .eq("id", automatic.id)
+    ).error,
+  ).toBeTruthy();
+  expect(
+    (
+      await staffDb.from("order_events").insert({
+        tenant_id: tenantA,
+        order_id: automatic.id,
+        to_status: "served",
+      })
+    ).error,
+  ).toBeTruthy();
+  expect(
+    (await staffDb.from("orders").select("id").eq("tenant_id", tenantB)).data,
+  ).toEqual([]);
+  const audit = await staffDb
+    .from("audit_logs")
+    .select("action,actor_id")
+    .eq("tenant_id", tenantA)
+    .eq("target_id", orderId);
+  expect(audit.data?.length).toBe(state.version - 1);
+  expect(audit.data?.every((e) => users.includes(e.actor_id))).toBe(true);
   expect(
     (await api(`/admin/tables/${table}/qr?tenant=${tenantA}`, owner, {}))
       .status,
@@ -247,6 +442,16 @@ it("real Auth → owner menu/image/table → QR → tenant isolation → revocat
   expect((await api(`/admin/products?tenant=${tenantA}`, staff)).status).toBe(
     403,
   );
+  expect((await api(listPath, staff)).status).toBe(403);
+  expect(
+    (
+      await api(
+        `/admin/orders/${automatic.id}/transitions?tenant=${tenantA}`,
+        staff,
+        { version: 1, status: "preparing" },
+      )
+    ).status,
+  ).toBe(403);
   expect(
     (await api("/auth/logout", owner, {})).headers.get("set-cookie"),
   ).toContain("Max-Age=0");

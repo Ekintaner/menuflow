@@ -1,3 +1,4 @@
+import { orderManagement } from "./order-management";
 import { createClient } from "@supabase/supabase-js";
 import { createUserDatabase } from "./supabase";
 import type { Env } from "./index";
@@ -11,7 +12,7 @@ export class ApiError extends Error {
     super(message);
   }
 }
-const fail = (status: number, code: string, message: string): never => {
+export const fail = (status: number, code: string, message: string): never => {
   throw new ApiError(status, code, message);
 };
 export const uuid = (v: unknown): string =>
@@ -259,6 +260,13 @@ export async function management(
   );
   if (!membership)
     fail(403, "MEMBERSHIP_REQUIRED", "Aktif işletme üyeliği gerekli.");
+  const orderResponse = await orderManagement(
+    request,
+    db,
+    tenant,
+    membership!.role === "owner",
+  );
+  if (orderResponse) return orderResponse;
   if (method !== "GET" && membership!.role !== "owner")
     fail(
       403,

@@ -43,10 +43,7 @@ export async function fetchRequest(
 ): Promise<Response> {
   const path = new URL(request.url).pathname;
   if (
-    !(
-      path.startsWith("/api/v1/admin/") &&
-      !path.startsWith("/api/v1/admin/orders")
-    ) &&
+    !path.startsWith("/api/v1/admin/") &&
     !path.startsWith("/api/v1/auth/") &&
     path !== "/api/v1/menu" &&
     path !== "/api/v1/guest-sessions" &&
