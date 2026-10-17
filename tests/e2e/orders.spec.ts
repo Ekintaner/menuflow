@@ -25,6 +25,78 @@ const order = {
   currency: "TRY",
   items: [{ product_name: "Kahve", quantity: 2 }],
 };
+
+test("customer polling waits for slow responses and stops after session expiry", async ({
+  page,
+}) => {
+  await page.clock.install();
+  let reads = 0;
+  let release: (() => void) | undefined;
+  await page.route("**/api/v1/**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("guest-sessions")) return route.fulfill({ json: {} });
+    if (path.endsWith("/menu")) return route.fulfill({ json: menu });
+    if (path.endsWith("/orders"))
+      return route.fulfill({ status: 201, json: order });
+    reads++;
+    await new Promise<void>((done) => {
+      release = done;
+    });
+    return route.fulfill({
+      status: 401,
+      json: {
+        code: "SESSION_REQUIRED",
+        message: "Oturum sona erdi. QR kodunu tekrar okutun.",
+      },
+    });
+  });
+  await page.goto(`/menu#${"a".repeat(64)}`);
+  await page.getByRole("button", { name: "Kahve ekle" }).click();
+  await page.getByRole("button", { name: "Siparişi onayla ve gönder" }).click();
+  await expect(page.getByRole("status")).toBeVisible();
+  await page.clock.fastForward(10100);
+  await expect.poll(() => reads).toBe(1);
+  await page.clock.fastForward(30000);
+  expect(reads).toBe(1);
+  release!();
+  await expect(page.getByRole("alert")).toContainText("Oturum sona erdi");
+  await page.clock.fastForward(60000);
+  expect(reads).toBe(1);
+});
+
+test("mobile layout, keyboard controls, named inputs and terminal polling", async ({
+  page,
+}) => {
+  await page.clock.install();
+  let reads = 0;
+  await page.route("**/api/v1/**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("guest-sessions")) return route.fulfill({ json: {} });
+    if (path.endsWith("/menu")) return route.fulfill({ json: menu });
+    if (path.endsWith("/orders"))
+      return route.fulfill({
+        status: 201,
+        json: { ...order, status: "served" },
+      });
+    reads++;
+    return route.fulfill({ json: order });
+  });
+  await page.goto(`/menu#${"a".repeat(64)}`);
+  const add = page.getByRole("button", { name: "Kahve ekle" });
+  await add.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByLabel("Sepet")).toContainText("Kahve × 1");
+  await page.getByLabel("Sipariş notu").fill("Klavye");
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.getByRole("button", { name: "Siparişi onayla ve gönder" }).click();
+  await expect(page.getByRole("status")).toContainText("teslim edildi");
+  await page.clock.fastForward(60000);
+  expect(reads).toBe(0);
+});
 test("QR → quantity → cart → real contract → own order tracking", async ({
   page,
 }) => {

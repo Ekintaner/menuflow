@@ -1,0 +1,16 @@
+{
+  "environment": "local Node Worker handler + Docker Supabase; not deployed edge CPU or internet latency",
+  "concurrency": 50,
+  "successes": 50,
+  "elapsed_ms": 130.85090000000037,
+  "p50_ms": 77.58010000000013,
+  "p95_ms": 122.3099000000002,
+  "max_ms": 125.00370000000021,
+  "tracking_burst_50_ms": 47.42630000000008,
+  "mixed_50_retries_plus_50_polls_ms": 131.2449999999999,
+  "mixed_pair_p95_ms": 115.60570000000007,
+  "p95_target_pass": true,
+  "mobile_menu_usable_ms": 101.84709999999995,
+  "panel_visibility_ms": 2836.7137999999995,
+  "browser": "Pixel 7 emulation, local Chromium, no network throttling"
+}

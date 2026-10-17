@@ -118,13 +118,34 @@ export function CustomerMenu() {
       )
     )
       return;
-    const timer = setInterval(() => {
-      if (document.hidden) return;
-      Promise.all(orders.map((o) => api(`/orders/${o.id}`)))
-        .then(setOrders)
-        .catch((e) => setError(e.message));
-    }, 10000);
-    return () => clearInterval(timer);
+    let current = true;
+    let timer: ReturnType<typeof setTimeout>;
+    async function poll() {
+      let expired = false;
+      if (!document.hidden) {
+        try {
+          const refreshed = await Promise.all(
+            orders.map((o) =>
+              ["served", "rejected", "cancelled"].includes(o.status)
+                ? Promise.resolve(o)
+                : api(`/orders/${o.id}`),
+            ),
+          );
+          if (current) setOrders(refreshed);
+        } catch (e) {
+          expired = [401, 403, 404].includes(
+            (e as { status?: number }).status || 0,
+          );
+          if (current) setError((e as Error).message);
+        }
+      }
+      if (current && !expired) timer = setTimeout(poll, 10000);
+    }
+    timer = setTimeout(poll, 10000);
+    return () => {
+      current = false;
+      clearTimeout(timer);
+    };
   }, [orders]);
   const money = (n: number, currency = menu?.tenant.currency || "TRY") =>
     new Intl.NumberFormat("tr-TR", { style: "currency", currency }).format(

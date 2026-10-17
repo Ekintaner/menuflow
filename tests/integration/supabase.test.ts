@@ -2,6 +2,12 @@ import { spawnSync } from "node:child_process";
 import { createClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { fetchRequest, type Env } from "../../worker/index";
+import { createHash } from "node:crypto";
+import { createServer } from "node:http";
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { resolve, extname } from "node:path";
+import { chromium, devices } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
 const ids = Array.from({ length: 5 }, () => crypto.randomUUID());
 const [tenantA, tenantB] = ids;
 let env: Env, admin: ReturnType<typeof createClient>;
@@ -420,6 +426,295 @@ it("real Auth → owner menu/image/table → QR → tenant isolation → revocat
     .eq("target_id", orderId);
   expect(audit.data?.length).toBe(state.version - 1);
   expect(audit.data?.every((e) => users.includes(e.actor_id))).toBe(true);
+  // CODEX-006: 50 independently authenticated guests, two tables (25/table),
+  // real Worker handler + Auth/PostgREST/PostgreSQL; no mocked service calls.
+  const loadTables = [crypto.randomUUID(), crypto.randomUUID()];
+  const tokens = loadTables.map(() =>
+    crypto.randomUUID().replaceAll("-", "").repeat(2),
+  );
+  sql(
+    loadTables
+      .map(
+        (
+          id,
+          i,
+        ) => `insert into dining_tables(id,tenant_id,name) values('${id}','${tenantA}','Load ${i}');
+    insert into table_qr_tokens(tenant_id,table_id,token_hash,version) values('${tenantA}','${id}','${createHash("sha256").update(tokens[i]).digest("hex")}',1);`,
+      )
+      .join("\n"),
+  );
+  const guests = await Promise.all(
+    Array.from({ length: 50 }, async (_, i) => {
+      const opened = await api("/guest-sessions", "", { token: tokens[i % 2] });
+      expect(opened.status).toBe(201);
+      const cookie = opened.headers.get("set-cookie")!.split(";")[0];
+      const menu = await (await api("/menu", cookie)).json();
+      return {
+        cookie,
+        payload: {
+          version: menu.version,
+          session_id: menu.session_id,
+          items: [{ product_id: product, quantity: 1 }],
+        },
+      };
+    }),
+  );
+  const started = performance.now();
+  const load = await Promise.all(
+    guests.map(async (g) => {
+      const start = performance.now();
+      const response = await api("/orders", g.cookie, g.payload);
+      expect(response.status).toBe(201);
+      return { ms: performance.now() - start, order: await response.json() };
+    }),
+  );
+  const elapsed = performance.now() - started;
+  expect(new Set(load.map((r) => r.order.id)).size).toBe(50);
+  const latencies = load.map((r) => r.ms).sort((a, b) => a - b);
+  const pollingStart = performance.now();
+  const polling = await Promise.all(
+    guests.map((g, i) => api(`/orders/${load[i].order.id}`, g.cookie)),
+  );
+  expect(polling.every((r) => r.status === 200)).toBe(true);
+  const pollMs = performance.now() - pollingStart;
+  const mixedStart = performance.now();
+  const mixed = await Promise.all(
+    guests.map(async (g, i) => {
+      const start = performance.now();
+      const [retry, tracked] = await Promise.all([
+        api("/orders", g.cookie, g.payload),
+        api(`/orders/${load[i].order.id}`, g.cookie),
+      ]);
+      expect(retry.status).toBe(200);
+      expect(tracked.status).toBe(200);
+      expect((await retry.json()).id).toBe(load[i].order.id);
+      return performance.now() - start;
+    }),
+  );
+  const mixedMs = performance.now() - mixedStart;
+  const replay = await api("/orders", guests[0].cookie, guests[0].payload);
+  expect(replay.status).toBe(200);
+  expect((await replay.json()).id).toBe(load[0].order.id);
+  // A burst on one table is intentionally capped, rather than bypassing limits.
+  const rate = await api("/orders", guests[0].cookie, {
+    ...guests[0].payload,
+    note: "changed",
+  });
+  expect(rate.status).toBe(409);
+  sql(
+    `update guest_sessions set created_at=now()-interval '2 hours', expires_at=now()-interval '1 second' where id='${guests[0].payload.session_id}';`,
+  );
+  expect((await api("/menu", guests[0].cookie)).status).toBe(401);
+  expect(
+    (await api(`/orders/${load[0].order.id}`, guests[0].cookie)).status,
+  ).toBe(404);
+  mkdirSync("test-results", { recursive: true });
+  const metrics = {
+    environment:
+      "local Node Worker handler + Docker Supabase; not deployed edge CPU or internet latency",
+    concurrency: 50,
+    successes: load.length,
+    elapsed_ms: elapsed,
+    p50_ms: latencies[24],
+    p95_ms: latencies[47],
+    max_ms: latencies[49],
+    tracking_burst_50_ms: pollMs,
+    mixed_50_retries_plus_50_polls_ms: mixedMs,
+    mixed_pair_p95_ms: mixed.sort((a, b) => a - b)[47],
+    p95_target_pass: latencies[47] < 2000,
+  };
+  writeFileSync(
+    "test-results/performance-006.json",
+    JSON.stringify(metrics, null, 2),
+  );
+  console.log("CODEX-006 performance", metrics);
+
+  const beforeBrowser = await (await api(settingsPath, owner)).json();
+  expect(
+    (
+      await api(
+        settingsPath,
+        owner,
+        { ...beforeBrowser, acceptance_mode: "manual" },
+        "PATCH",
+      )
+    ).status,
+  ).toBe(200);
+
+  // Actual mobile browser -> local HTTP server -> Worker -> Supabase.
+  const server = createServer(async (req, res) => {
+    try {
+      const origin = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
+      const url = new URL(req.url!, origin);
+      if (url.pathname.startsWith("/api/")) {
+        const chunks: Buffer[] = [];
+        for await (const chunk of req) chunks.push(Buffer.from(chunk));
+        const response = await fetchRequest(
+          new Request(url, {
+            method: req.method,
+            headers: req.headers as Record<string, string>,
+            body: ["GET", "HEAD"].includes(req.method!)
+              ? undefined
+              : Buffer.concat(chunks),
+          }),
+          env,
+        );
+        res.writeHead(response.status, Object.fromEntries(response.headers));
+        res.end(Buffer.from(await response.arrayBuffer()));
+      } else {
+        const file = url.pathname.startsWith("/assets/")
+          ? resolve("dist", "." + url.pathname)
+          : resolve("dist/index.html");
+        if (
+          !file.startsWith(resolve("dist") + "/") &&
+          !file.startsWith(resolve("dist") + "\\")
+        )
+          throw Error("Invalid path");
+        res.setHeader(
+          "Content-Type",
+          (
+            {
+              ".js": "text/javascript",
+              ".css": "text/css",
+              ".html": "text/html",
+            } as Record<string, string>
+          )[extname(file)] || "application/octet-stream",
+        );
+        res.end(readFileSync(file));
+      }
+    } catch {
+      res.writeHead(500);
+      res.end("Local test server error");
+    }
+  });
+  await new Promise<void>((done) => server.listen(0, "127.0.0.1", done));
+  const browser = await chromium.launch();
+  try {
+    const context = await browser.newContext({ ...devices["Pixel 7"] });
+    const page = await context.newPage();
+    const origin = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
+    const restaurant = await browser.newContext();
+    await restaurant.addCookies([
+      {
+        name: "mf_admin",
+        value: staff.slice("mf_admin=".length),
+        url: origin,
+        httpOnly: true,
+        sameSite: "Strict",
+      },
+    ]);
+    const panel = await restaurant.newPage();
+    await panel.goto(`${origin}/admin`);
+    await panel
+      .getByRole("button", { name: "Siparişler", exact: true })
+      .click();
+    await panel.getByLabel("Masa filtresi").selectOption(loadTables[1]);
+    const start = performance.now();
+    await page.goto(`${origin}/menu#${tokens[1]}`);
+    await page.getByRole("button", { name: "Espresso ekle" }).waitFor();
+    const menuMs = performance.now() - start;
+    const customerA11y = await new AxeBuilder({ page })
+      .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+      .analyze();
+    expect(customerA11y.violations).toEqual([]);
+    const panelA11y = await new AxeBuilder({ page: panel })
+      .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+      .analyze();
+    expect(panelA11y.violations).toEqual([]);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    await page.getByRole("button", { name: "Espresso ekle" }).click();
+    const sent = page.waitForResponse(
+      (r) =>
+        r.url().endsWith("/api/v1/orders") && r.request().method() === "POST",
+    );
+    await page
+      .getByRole("button", { name: "Siparişi onayla ve gönder" })
+      .click();
+    const created = await (await sent).json();
+    expect(created.status).toBe("pending_acceptance");
+    const visibleStart = performance.now();
+    await panel
+      .getByLabel("Yeni durum " + created.id.slice(0, 8), { exact: true })
+      .waitFor();
+    const panelMs = performance.now() - visibleStart;
+    for (const [version, status] of [
+      [1, "accepted"],
+      [2, "preparing"],
+      [3, "ready"],
+      [4, "served"],
+    ]) {
+      const selector = panel.getByLabel(
+        "Yeni durum " + created.id.slice(0, 8),
+        { exact: true },
+      );
+      await selector.selectOption(String(status));
+      const changed = panel.waitForResponse((r) =>
+        r.url().includes(`/orders/${created.id}/transitions`),
+      );
+      await panel
+        .getByRole("button", {
+          name: "Durumu kaydet " + created.id.slice(0, 8),
+          exact: true,
+        })
+        .click();
+      expect((await changed).status()).toBe(200);
+      expect(
+        (
+          await (
+            await api(
+              `/orders/${created.id}`,
+              (await context.cookies())
+                .map((c) => `${c.name}=${c.value}`)
+                .join(";"),
+            )
+          ).json()
+        ).version,
+      ).toBe(Number(version) + 1);
+      // Real reload restores the order ID and fetches current customer status.
+      await page.reload();
+      await page
+        .getByRole("status")
+        .filter({
+          hasText:
+            status === "served"
+              ? "teslim edildi"
+              : status === "ready"
+                ? "hazır"
+                : status === "accepted"
+                  ? "kabul edildi"
+                  : "hazırlanıyor",
+        })
+        .waitFor();
+    }
+    await page.screenshot({
+      path: "test-results/real-mobile-006.png",
+      fullPage: true,
+    });
+    writeFileSync(
+      "test-results/performance-006.json",
+      JSON.stringify(
+        {
+          ...metrics,
+          mobile_menu_usable_ms: menuMs,
+          panel_visibility_ms: panelMs,
+          browser: "Pixel 7 emulation, local Chromium, no network throttling",
+        },
+        null,
+        2,
+      ),
+    );
+    await restaurant.close();
+    await context.close();
+  } finally {
+    await browser.close();
+    await new Promise<void>((done, reject) =>
+      server.close((e) => (e ? reject(e) : done())),
+    );
+  }
   expect(
     (await api(`/admin/tables/${table}/qr?tenant=${tenantA}`, owner, {}))
       .status,

@@ -1,4 +1,6 @@
-# MenuFlow — CODEX-005
+# MenuFlow — CODEX-006
+
+CODEX-006 doğrulama raporu: [sonuçlar](docs/CODEX-006-results.md), [yerel ölçümler](docs/performance-006.json), [pilot kurulum/kullanım ve kota bütçesi](docs/pilot-operations.md), [yedekleme ve geri yükleme](docs/backup-restore.md). Yerel gerçek tarayıcı entegrasyonu derlenmiş arayüzü kullanır; `npm run build` sonrasında `npm run test:integration` çalıştırın. CI zaten bu sırayı uygular.
 
 Çok işletmeli QR menü: React/Vite arayüzü, Cloudflare Worker API, Supabase Auth/PostgreSQL/Storage.
 
@@ -87,4 +89,4 @@ Sürüm uyuşmazlığı veya yasak geçiş 409; başka işletmedeki sipariş ayr
 
 Ayarlar beklenen sürümle güncellenir; sürümü veritabanı trigger'ı artırır ve değişiklikleri denetler. Yeni sipariş ayar satırını kilitleyerek o andaki modu kaydeder. Otomatik kabul `accepted` oluşturur, hazırlığa geçirmez; önceki siparişlere uygulanmaz. QR fiziksel konumu kanıtlamadığı için bu davranış ayar formunda açıklanır.
 
-Görünür sekmede tamamlanan istekten 5 saniye sonra polling yapılır; gizli sekmede ağ isteği gönderilmez ve 30 saniyelik kontrol aralığı kullanılır. Yetki/oturum kaybında liste temizlenir ve polling durur. Ret/iptal, uzun bekleme uyarısı, çakışma sonrası güncel liste, geçmiş ve manuel yenileme desteklenir. Sesli bildirim bu aşamada eklenmedi. Misafirin kendi sipariş takibi aynı order/event kayıtlarından ilerler.
+Görünür sekmede tamamlanan istekten 4 saniye sonra polling yapılır; gizli sekmede ağ isteği gönderilmez ve 30 saniyelik kontrol aralığı kullanılır. Yetki/oturum kaybında liste temizlenir ve polling durur. Ret/iptal, uzun bekleme uyarısı, çakışma sonrası güncel liste, geçmiş ve manuel yenileme desteklenir. Sesli bildirim bu aşamada eklenmedi. Misafirin kendi sipariş takibi aynı order/event kayıtlarından ilerler.

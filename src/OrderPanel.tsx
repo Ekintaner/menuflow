@@ -138,7 +138,7 @@ export function OrderPanel({
           }
         }
       }
-      if (current) timer = setTimeout(poll, document.hidden ? 30000 : 5000);
+      if (current) timer = setTimeout(poll, document.hidden ? 30000 : 4000);
     }
     void poll();
     return () => {

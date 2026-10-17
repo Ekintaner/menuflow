@@ -319,6 +319,64 @@ try {
     select test_assert((select version=2 from orders where id='${orderId}'),'settings change preserves existing order version');`,
     ),
   );
+  // Logical backup drill: restore the complete synthetic database into a fresh
+  // database, not over the source. No customer data or backup file leaves Docker.
+  const dump = docker([
+    "exec",
+    container,
+    "pg_dump",
+    "-U",
+    "postgres",
+    "--no-owner",
+    "postgres",
+  ]);
+  docker(["exec", container, "createdb", "-U", "postgres", "menuflow_restore"]);
+  docker(
+    [
+      "exec",
+      "-i",
+      container,
+      "psql",
+      "-X",
+      "-U",
+      "postgres",
+      "-d",
+      "menuflow_restore",
+      "-v",
+      "ON_ERROR_STOP=1",
+    ],
+    dump,
+  );
+  const integrity = `select json_build_object(
+    'orders',(select count(*) from orders),
+    'items',(select count(*) from order_items),
+    'events',(select count(*) from order_events),
+    'idempotency',(select count(*) from idempotency_records),
+    'orphans',(select count(*) from order_items i left join orders o on o.id=i.order_id and o.tenant_id=i.tenant_id where o.id is null),
+    'orders_hash',(select md5(string_agg(row_to_json(o)::text,'' order by id)) from orders o),
+    'items_hash',(select md5(string_agg(row_to_json(i)::text,'' order by id)) from order_items i),
+    'events_hash',(select md5(string_agg(row_to_json(e)::text,'' order by id)) from order_events e),
+    'policies',(select count(*) from pg_policies where schemaname in ('public','storage')),
+    'rls',(select count(*) from pg_tables where schemaname='public' and rowsecurity));`;
+  const snapshot = (database) =>
+    docker([
+      "exec",
+      container,
+      "psql",
+      "-X",
+      "-U",
+      "postgres",
+      "-d",
+      database,
+      "-Atc",
+      integrity,
+    ]).trim();
+  if (snapshot("postgres") !== snapshot("menuflow_restore"))
+    throw Error("Backup restore integrity mismatch");
+  console.log(
+    "PASS: logical backup restored into clean database; orders/items/events/idempotency, tenant links and RLS counts match",
+    snapshot("menuflow_restore"),
+  );
 } finally {
   docker(["rm", "-f", container]);
 }
