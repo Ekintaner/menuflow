@@ -1,0 +1,44 @@
+{
+  "name": "menuflow",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k \"npm:dev:web\" \"npm:dev:api\"",
+    "dev:web": "vite --port 5198 --strictPort",
+    "dev:api": "wrangler dev --local",
+    "build": "tsc -b && tsc -p tsconfig.worker.json && vite build",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "preview": "vite preview",
+    "check": "npm run lint && npm run build && npm test && npm run test:e2e",
+    "api:check": "wrangler deploy --dry-run --outdir dist-worker"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.118.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.64.1",
+    "@tailwindcss/vite": "4.3.3",
+    "@types/node": "24.19.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "concurrently": "10.0.6",
+    "eslint": "10.13.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "eslint-plugin-react-refresh": "0.5.7",
+    "globals": "17.13.0",
+    "prettier": "3.9.10",
+    "tailwindcss": "4.3.3",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.71.2",
+    "vite": "8.3.4",
+    "vitest": "5.0.5",
+    "wrangler": "4.151.1"
+  }
+}

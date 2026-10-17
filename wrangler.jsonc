@@ -1,0 +1,9 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "menuflow-api",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": false,
+  "dev": { "ip": "127.0.0.1", "port": 8798 },
+  "observability": { "enabled": false },
+}

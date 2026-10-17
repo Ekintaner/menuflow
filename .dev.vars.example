@@ -1,0 +1,3 @@
+# Optional. Local demo works without these. Never add elevated keys.
+SUPABASE_URL=
+SUPABASE_PUBLISHABLE_KEY=

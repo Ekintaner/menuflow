@@ -1,0 +1,31 @@
+@import "tailwindcss";
+@layer base {
+  body {
+    @apply m-0 bg-stone-50 text-stone-900 antialiased;
+    font-family: system-ui, sans-serif;
+  }
+  h1 {
+    @apply text-4xl font-semibold tracking-tight md:text-5xl;
+  }
+  h2 {
+    @apply text-lg font-semibold;
+  }
+  button {
+    @apply rounded-lg bg-stone-900 px-4 py-2 text-sm text-white cursor-pointer;
+  }
+  button:disabled {
+    @apply cursor-not-allowed bg-stone-300;
+  }
+  a:focus-visible,
+  button:focus-visible {
+    @apply outline-2 outline-offset-4 outline-orange-600;
+  }
+}
+@layer components {
+  .card {
+    @apply rounded-2xl border border-stone-200 bg-white p-6;
+  }
+  .eyebrow {
+    @apply mb-4 text-xs font-bold tracking-widest text-orange-700;
+  }
+}
