@@ -63,6 +63,108 @@ export async function platform(request: Request, env: Env): Promise<Response> {
     }
     return r.data;
   };
+  const membershipMatch = path.match(
+    /^\/api\/v1\/platform\/restaurants\/([a-f0-9-]+)\/memberships$/,
+  );
+  if (membershipMatch) {
+    const tenant = uuid(membershipMatch[1]);
+    if (method === "GET")
+      return Response.json(
+        checked(
+          await db
+            .from("memberships")
+            .select("id,user_id,role,active")
+            .eq("tenant_id", tenant)
+            .order("id")
+            .limit(200),
+        ),
+      );
+    if (!["POST", "PATCH"].includes(method))
+      fail(404, "NOT_FOUND", "Uç bulunamadı.");
+    const b = await body(request);
+    if (method === "POST" && !["owner", "staff"].includes(String(b.role)))
+      fail(422, "INVALID_INPUT", "İşletme sahibi veya çalışan rolü seçin.");
+    if (method === "PATCH" && typeof b.active !== "boolean")
+      fail(422, "INVALID_INPUT", "Üyelik durumu gerekli.");
+    const result = await db.rpc("platform_membership", {
+      operation: method === "POST" ? "grant" : "set_active",
+      actor: data.user!.id,
+      target_tenant: tenant,
+      target_user: uuid(b.user_id),
+      member_role: method === "POST" ? b.role : null,
+      member_active: method === "POST" ? true : b.active,
+    });
+    if (result.error?.message === "LAST_OWNER")
+      fail(
+        409,
+        "LAST_OWNER",
+        "İşletmenin son aktif sahibi kapatılamaz veya çalışan yapılamaz.",
+      );
+    return Response.json({ id: checked(result) });
+  }
+  if (path === "/api/v1/platform/accounts" && method === "POST") {
+    const b = await body(request),
+      tenant = uuid(b.tenant_id),
+      email = text(b.email, 254).toLowerCase();
+    if (
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
+      typeof b.password !== "string" ||
+      b.password.length < 12 ||
+      b.password.length > 128 ||
+      !["owner", "staff"].includes(String(b.role))
+    )
+      fail(
+        422,
+        "INVALID_INPUT",
+        "Geçerli e-posta, en az 12 karakterli parola ve işletme rolü gerekli.",
+      );
+    const existing = checked(
+      await db
+        .from("tenants")
+        .select("id")
+        .eq("id", tenant)
+        .eq("active", true)
+        .maybeSingle(),
+    );
+    if (!existing) fail(404, "NOT_FOUND", "Aktif restoran bulunamadı.");
+    // Manual provisioning: no invitation email, public signup or editable platform claims.
+    const created = await db.auth.admin.createUser({
+      email,
+      password: b.password as string,
+      email_confirm: true,
+    });
+    if (created.error || !created.data.user)
+      fail(
+        422,
+        "ACCOUNT_CREATE_FAILED",
+        "Hesap açılamadı; e-posta zaten kayıtlıysa mevcut hesaba üyelik verin. Sonuç belirsizse önce hesabı kontrol edin.",
+      );
+    const userId = created.data.user!.id;
+    const assigned = await db.rpc("platform_membership", {
+      operation: "grant",
+      actor: data.user!.id,
+      target_tenant: tenant,
+      target_user: userId,
+      member_role: b.role,
+      member_active: true,
+    });
+    // Auth and PostgreSQL cannot share a transaction. Keep failures recoverable and explicit.
+    // Never delete an account when the outcome of the membership write is uncertain.
+    if (assigned.error)
+      return Response.json(
+        {
+          user_id: userId,
+          membership_assigned: false,
+          message:
+            "Hesap açıldı ancak üyelik doğrulanamadı. Listeyi yenileyin; üyelik yoksa bu hesap UUID'siyle mevcut hesaba üyelik verin.",
+        },
+        { status: 202 },
+      );
+    return Response.json(
+      { user_id: userId, membership_assigned: true },
+      { status: 201 },
+    );
+  }
   if (path === "/api/v1/platform/restaurants" && method === "GET") {
     let query = db
       .from("tenants")

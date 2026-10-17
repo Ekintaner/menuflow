@@ -30,6 +30,8 @@ function upstream(role = "owner") {
     const url = String(input);
     if (url.includes("/auth/v1/user"))
       return Response.json({ id, user_metadata: { role: "owner" } });
+    if (url.includes("/rest/v1/memberships") && url.includes("tenants"))
+      return Response.json(role === "none" ? [] : [{ tenant_id: tenant }]);
     if (url.includes("/rest/v1/memberships"))
       return Response.json(role === "none" ? null : { role });
     if (url.includes("/rpc/rotate_table_qr")) return Response.json(null);
@@ -99,7 +101,10 @@ describe("CODEX-003 API", () => {
     expect(r.status).toBe(200);
     expect(r.headers.get("set-cookie")).toContain("HttpOnly; SameSite=Strict");
     expect(r.headers.get("set-cookie")).toContain("Secure");
-    expect(await r.json()).toEqual({ authenticated: true });
+    expect(await r.json()).toEqual({
+      authenticated: true,
+      destination: "/admin",
+    });
   });
   it.each(["staff", "none"])(
     "blocks writes for %s regardless of editable metadata",
@@ -240,3 +245,52 @@ describe("CODEX-003 API", () => {
     ).toBe(401);
   });
 });
+
+it("routes the configured platform admin without trusting a role request", async () => {
+  vi.stubGlobal("fetch", upstream("none"));
+  const r = await fetchRequest(
+    request("/auth/login", {
+      email: "a@b.test",
+      password: "pass",
+      role: "owner",
+    }),
+    { ...env, PLATFORM_ADMIN_USER_ID: id },
+  );
+  expect(r.status).toBe(200);
+  expect(await r.json()).toEqual({
+    authenticated: true,
+    destination: "/platform",
+  });
+});
+it("refuses login and session access without an active granted membership", async () => {
+  vi.stubGlobal("fetch", upstream("none"));
+  for (const req of [
+    request("/auth/login", {
+      email: "a@b.test",
+      password: "pass",
+      role: "platform_admin",
+    }),
+    request("/auth/session"),
+  ]) {
+    const r = await fetchRequest(req, env);
+    expect(r.status).toBe(403);
+    expect(r.headers.get("set-cookie")).toBeNull();
+    expect(await r.json()).toMatchObject({ code: "MEMBERSHIP_REQUIRED" });
+  }
+});
+it.each(["POST", "PATCH", "DELETE"])(
+  "prevents restaurant owner membership writes using %s",
+  async (method) => {
+    vi.stubGlobal("fetch", upstream());
+    const r = await fetchRequest(
+      request(
+        `/admin/staff/${id}?tenant=${tenant}`,
+        { user_id: id, active: true },
+        method,
+      ),
+      env,
+    );
+    expect(r.status).toBe(403);
+    expect(await r.json()).toMatchObject({ code: "PLATFORM_REQUIRED" });
+  },
+);

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Management } from "./Management";
 import { CustomerMenu } from "./CustomerMenu";
 import { Platform } from "./Platform";
+import { LoginPage } from "./PanelLogin";
 const products = [
   {
     id: "coffee",
@@ -23,6 +24,7 @@ const money = (value: number) =>
 export default function App() {
   const admin = location.pathname.startsWith("/admin");
   const [cart, setCart] = useState<Record<string, number>>({});
+  if (location.pathname === "/login") return <LoginPage />;
   if (location.pathname === "/platform-demo") return <Platform demo />;
   if (location.pathname === "/platform") return <Platform />;
   if (admin) return <Management />;
@@ -35,7 +37,7 @@ export default function App() {
         </a>
         <nav className="flex gap-5" aria-label="Ana menü">
           <a href="/">Müşteri menüsü</a>
-          <a href="/admin">Yönetim</a>
+          <a href="/login">Yönetim</a>
         </nav>
       </header>
       <p className="mb-4 rounded-xl bg-amber-100 p-3 text-sm">

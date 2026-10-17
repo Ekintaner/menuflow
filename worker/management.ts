@@ -106,6 +106,26 @@ export async function body(request: Request) {
     return fail(400, "INVALID_JSON", "Geçersiz JSON.");
   }
 }
+async function panelDestination(env: Env, token: string, userId: string) {
+  if (env.PLATFORM_ADMIN_USER_ID && env.PLATFORM_ADMIN_USER_ID === userId)
+    return "/platform";
+  const result = await createUserDatabase(env, token)
+    .from("memberships")
+    .select("tenant_id,tenants!inner(active)")
+    .eq("user_id", userId)
+    .eq("active", true)
+    .eq("tenants.active", true)
+    .limit(1);
+  if (result.error)
+    fail(503, "SERVICE_UNAVAILABLE", "Giriş yetkisi şu anda doğrulanamıyor.");
+  if (!result.data?.length)
+    fail(
+      403,
+      "MEMBERSHIP_REQUIRED",
+      "Hesabınıza henüz aktif işletme üyeliği verilmemiş. Platform yöneticisiyle görüşün.",
+    );
+  return "/admin";
+}
 function checked<T>(result: { data: T; error: unknown }): T {
   const code =
     result.error && typeof result.error === "object" && "code" in result.error
@@ -159,7 +179,12 @@ export async function management(
     });
     if (error || !data.session)
       fail(401, "LOGIN_FAILED", "E-posta veya parola doğrulanamadı.");
-    return json({ authenticated: true }, 200, {
+    const destination = await panelDestination(
+      env,
+      data.session!.access_token,
+      data.user!.id,
+    );
+    return json({ authenticated: true, destination }, 200, {
       "Set-Cookie": sessionCookie(
         request,
         "mf_admin",
@@ -237,6 +262,17 @@ export async function management(
   const { data: identity, error } = await db.auth.getUser(token);
   if (error || !identity.user)
     fail(401, "AUTH_REQUIRED", "Oturum sona erdi. Tekrar giriş yapın.");
+  if (path === "/api/v1/auth/session" && method === "GET")
+    return json({
+      authenticated: true,
+      destination: await panelDestination(env, token, identity.user!.id),
+    });
+  if (/^\/api\/v1\/admin\/staff(?:\/|$)/.test(path) && method !== "GET")
+    fail(
+      403,
+      "PLATFORM_REQUIRED",
+      "Hesap ve üyelikleri yalnız platform yöneticisi yönetebilir.",
+    );
   if (path === "/api/v1/admin/memberships" && method === "GET") {
     return json(
       checked(

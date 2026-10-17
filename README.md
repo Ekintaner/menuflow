@@ -1,5 +1,7 @@
 # MenuFlow — CODEX-007
 
+Güncel erişim modeli: tek giriş `/login`; platform yöneticisi `/platform`, işletme sahibi/çalışan `/admin` ekranına sunucunun doğruladığı yetkiyle yönlenir. Hesap açma ve owner/staff üyeliği verme/kapatma yalnız platform yöneticisindedir; restoran sahipleri üyelik değiştiremez. Herkese açık kayıt kapalıdır. [Ortak giriş ve merkezi üyelik rehberi](docs/central-access.md).
+
 CODEX-007: [güvenli deployment ve secrets](docs/deployment-007.md), [örnek restoran / platform yönetimi / pilot kabul defteri](docs/restaurant-pilot-007.md), [demo katalog](docs/demo-catalog.json), [gözlem şablonu](docs/pilot-observations.csv). Gerçek pilot ve bulut deployment başlamadı.
 
 [CODEX-007 yerel sonuç raporu](docs/CODEX-007-results.md).
@@ -22,7 +24,7 @@ npx playwright install chromium
 npm run dev
 ```
 
-`/` CODEX-001 demo sepetidir; `/admin` gerçek yönetici girişidir; `/menu#TOKEN` masaya özel menüdür. Misafir sipariş akışı ve tenant yetkili sipariş paneli çalışır.
+`/` CODEX-001 demo sepetidir; `/login` ortak panel girişidir; `/admin` işletme panelidir; `/menu#TOKEN` masaya özel menüdür. Misafir sipariş akışı ve tenant yetkili sipariş paneli çalışır.
 
 ```sh
 npm run check
@@ -50,7 +52,7 @@ Arayüzü bu yerel servisle kullanmak için `.dev.vars.example` dosyasını `.de
 
 Yönetici girişinden sonra işletmeyi seçin. Sahip kategori ve ürün oluşturup düzenleyebilir; sıra, arşiv ve müsaitlik ayarlayabilir. Fiyat para biriminde girilir ve kesin tam kuruşa çevrilir. PNG/JPEG/WebP görsel sınırı 300 KB'dır. Masa oluşturun, QR oluştur/yenile düğmesiyle PNG indirin ve menüyü yayımlayın. QR tek sefer gösterilir; yeniden üretmek eski baskıyı iptal eder. Yayımlanmış menüde sonraki değişiklikler hemen görünür.
 
-Çalışanlar menü/masa kayıtlarını salt okunur görür. Sahip, kontrollü açılmış bir hesabın UUID'siyle çalışan ekler ve pasifleştirir. Sahip atama/devretme platform işlemidir. Oturum en fazla bir saat sürer; süresi dolduğunda tekrar giriş yapılır.
+Çalışanlar menü/masa kayıtlarını salt okunur görür. Platform yöneticisi hesap açar, mevcut hesaba owner/staff üyeliği verir ve üyeliği açıp kapatır. Restoran sahipleri bu işlemleri yapamaz. Sahip atama/devretme platform işlemidir. Oturum en fazla bir saat sürer; süresi dolduğunda tekrar giriş yapılır.
 
 ## Güvenlik ve yayın
 

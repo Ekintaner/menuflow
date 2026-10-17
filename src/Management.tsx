@@ -1,3 +1,4 @@
+import { PanelLogin } from "./PanelLogin";
 import { OrderPanel } from "./OrderPanel";
 import { useEffect, useState, type FormEvent } from "react";
 import QRCode from "qrcode";
@@ -50,12 +51,6 @@ export function Management() {
   const owner =
     memberships.find((m) => m.tenant_id === tenant)?.role === "owner";
   const endpoint = (name: string) => `/admin/${name}?tenant=${tenant}`;
-  async function loadMemberships() {
-    const result = await api("/admin/memberships");
-    setMemberships(result);
-    setAuthenticated(true);
-    setTenant(result[0]?.tenant_id ?? "");
-  }
   useEffect(() => {
     let current = true;
     api("/admin/memberships")
@@ -107,17 +102,6 @@ export function Management() {
     setRows(await api(endpoint(resource)));
     setNotice("Kaydedildi.");
   }
-  async function login(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const f = new FormData(event.currentTarget);
-    await run(async () => {
-      await api("/auth/login", {
-        email: f.get("email"),
-        password: f.get("password"),
-      });
-      await loadMemberships();
-    });
-  }
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
@@ -162,7 +146,7 @@ export function Management() {
     <main className="mx-auto max-w-5xl p-6">
       <header className="mb-8 flex justify-between">
         <a href="/">MenuFlow.</a>
-        <a href="/">Müşteri menüsü</a>
+        <a href="/login">Ortak giriş</a>
       </header>
       <h1>İşletme yönetimi</h1>
       {error && (
@@ -172,26 +156,7 @@ export function Management() {
       )}
       {notice && <p role="status">{notice}</p>}
       {!authenticated ? (
-        <form onSubmit={login} className="card mt-8 space-y-4">
-          <h2>Yönetici girişi</h2>
-          <label>
-            E-posta
-            <input type="email" name="email" autoComplete="username" required />
-          </label>
-          <label>
-            Parola
-            <input
-              type="password"
-              name="password"
-              autoComplete="current-password"
-              required
-            />
-          </label>
-          <button disabled={busy}>Giriş yap</button>
-          <p>
-            Hesaplar kontrollü olarak açılır. Oturum en fazla bir saat sürer.
-          </p>
-        </form>
+        <PanelLogin />
       ) : (
         <>
           <div className="my-6 flex flex-wrap gap-4">
@@ -231,6 +196,9 @@ export function Management() {
               Çıkış yap
             </button>
           </div>
+          <p className="text-sm text-stone-600">
+            Hesap ve üyelik değişiklikleri için platform yöneticisiyle görüşün.
+          </p>
           {!memberships.length && <p>Aktif işletme üyeliğiniz bulunmuyor.</p>}
           {tenant && (
             <>
@@ -243,7 +211,6 @@ export function Management() {
                   ["categories", "Kategoriler"],
                   ["products", "Ürünler"],
                   ["tables", "Masalar"],
-                  ...(owner ? [["staff", "Çalışanlar"]] : []),
                 ].map(([value, label]) => (
                   <button
                     key={value}

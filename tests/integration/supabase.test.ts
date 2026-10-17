@@ -97,7 +97,10 @@ it("real Auth → owner menu/image/table → QR → tenant isolation → revocat
       password,
     });
     expect(r.status).toBe(200);
-    expect(await r.json()).toEqual({ authenticated: true });
+    expect(await r.json()).toEqual({
+      authenticated: true,
+      destination: "/admin",
+    });
     return r.headers.get("set-cookie")!.split(";")[0];
   }
   const owner = await login(0),
@@ -733,7 +736,24 @@ it("real Auth → owner menu/image/table → QR → tenant isolation → revocat
         "PATCH",
       )
     ).status,
-  ).toBe(200);
+  ).toBe(403);
+  // Revocation now belongs to the platform boundary, never to a restaurant owner.
+  const revoked = await fetchRequest(
+    new Request(
+      `https://app.test/api/v1/platform/restaurants/${tenantA}/memberships`,
+      {
+        method: "PATCH",
+        headers: {
+          origin: "https://app.test",
+          cookie: owner,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ user_id: users[2], active: false }),
+      },
+    ),
+    { ...env, PLATFORM_ADMIN_USER_ID: users[0] },
+  );
+  expect(revoked.status).toBe(200);
   expect((await api(`/admin/products?tenant=${tenantA}`, staff)).status).toBe(
     403,
   );
@@ -754,6 +774,9 @@ it("real Auth → owner menu/image/table → QR → tenant isolation → revocat
 });
 
 it("platform console restricts a single operator and provisions restaurants/QR atomically", async () => {
+  sql(
+    `update memberships set active=true where tenant_id='${tenantA}' and user_id='${users[2]}';`,
+  );
   const platformEnv = { ...env, PLATFORM_ADMIN_USER_ID: users[0] };
   const localApi = async (path: string, cookie = "", data?: unknown) =>
     fetchRequest(
@@ -932,4 +955,243 @@ it("platform console restricts a single operator and provisions restaurants/QR a
       `delete from guest_sessions where tenant_id='${id}';delete from audit_logs where tenant_id='${id}';delete from table_qr_tokens where tenant_id='${id}';delete from dining_tables where tenant_id='${id}';delete from memberships where tenant_id='${id}';delete from audit_logs where tenant_id='${id}';delete from tenant_settings where tenant_id='${id}';delete from tenants where id='${id}';`,
     );
   }
+});
+
+it("unified login and admin-only account grants survive revocation, direct API attempts and partial provisioning", async () => {
+  const centralEnv = { ...env, PLATFORM_ADMIN_USER_ID: users[0] };
+  const call = async (
+    path: string,
+    cookie = "",
+    data?: unknown,
+    method = "POST",
+  ) =>
+    fetchRequest(
+      new Request(`https://app.test/api/v1${path}`, {
+        method: data === undefined ? "GET" : method,
+        headers: {
+          origin: "https://app.test",
+          cookie,
+          "content-type": "application/json",
+        },
+        body: data === undefined ? undefined : JSON.stringify(data),
+      }),
+      centralEnv,
+    );
+  const login = async (index: number) => {
+    const r = await call("/auth/login", "", {
+      email: `menuflow-${ids[index]}@example.test`,
+      password,
+    });
+    expect(r.status).toBe(200);
+    return r;
+  };
+  const operatorLogin = await login(0);
+  expect(await operatorLogin.json()).toEqual({
+    authenticated: true,
+    destination: "/platform",
+  });
+  const operator = operatorLogin.headers.get("set-cookie")!.split(";")[0];
+  const ownerLogin = await login(1);
+  expect(await ownerLogin.json()).toEqual({
+    authenticated: true,
+    destination: "/admin",
+  });
+  const owner = ownerLogin.headers.get("set-cookie")!.split(";")[0];
+  expect(await (await call("/auth/session", operator)).json()).toEqual({
+    authenticated: true,
+    destination: "/platform",
+  });
+  const target = `/platform/restaurants/${tenantA}/memberships`;
+  for (const [path, payload] of [
+    [
+      "/platform/accounts",
+      {
+        tenant_id: tenantA,
+        email: "denied@example.test",
+        password,
+        role: "owner",
+      },
+    ],
+    [target, { user_id: users[1], role: "staff" }],
+  ] as const)
+    expect((await call(path, owner, payload)).status).toBe(403);
+  const ownerJwt = owner.slice("mf_admin=".length);
+  const unprivileged = createClient(
+    env.SUPABASE_URL!,
+    env.SUPABASE_PUBLISHABLE_KEY!,
+    {
+      global: { headers: { Authorization: `Bearer ${ownerJwt}` } },
+      auth: { persistSession: false },
+    },
+  );
+  expect(
+    (
+      await unprivileged
+        .from("memberships")
+        .insert({ tenant_id: tenantB, user_id: users[0], role: "staff" })
+    ).error,
+  ).toBeTruthy();
+  expect(
+    (
+      await unprivileged
+        .from("memberships")
+        .update({ active: false })
+        .eq("tenant_id", tenantB)
+    ).error,
+  ).toBeTruthy();
+  expect(
+    (
+      await unprivileged.rpc("platform_membership", {
+        operation: "grant",
+        actor: users[0],
+        target_tenant: tenantB,
+        target_user: users[0],
+        member_role: "owner",
+      })
+    ).error,
+  ).toBeTruthy();
+  const publicClient = createClient(
+    env.SUPABASE_URL!,
+    env.SUPABASE_PUBLISHABLE_KEY!,
+    { auth: { persistSession: false } },
+  );
+  expect(
+    (
+      await publicClient.auth.signUp({
+        email: `blocked-${ids[4]}@example.test`,
+        password,
+      })
+    ).error,
+  ).toBeTruthy();
+  expect(
+    (
+      await call(target, operator, {
+        user_id: users[1],
+        role: "platform_admin",
+      })
+    ).status,
+  ).toBe(422);
+  expect(
+    (
+      await call(
+        target,
+        operator,
+        { user_id: users[0], active: false },
+        "PATCH",
+      )
+    ).status,
+  ).toBe(409);
+  const email = `central-${ids[3]}@example.test`;
+  const created = await call("/platform/accounts", operator, {
+    tenant_id: tenantA,
+    email,
+    password,
+    role: "staff",
+  });
+  expect(created.status).toBe(201);
+  const account = await created.json();
+  expect(account.membership_assigned).toBe(true);
+  users.push(account.user_id);
+  const signed = await call("/auth/login", "", {
+    email,
+    password,
+    role: "platform_admin",
+  });
+  expect(signed.status).toBe(200);
+  expect(await signed.json()).toMatchObject({ destination: "/admin" });
+  const staff = signed.headers.get("set-cookie")!.split(";")[0];
+  expect((await call("/platform/restaurants", staff)).status).toBe(403);
+  expect((await api(`/admin/categories?tenant=${tenantB}`, staff)).status).toBe(
+    403,
+  );
+  expect(
+    (
+      await call("/platform/accounts", operator, {
+        tenant_id: tenantA,
+        email,
+        password,
+        role: "owner",
+      })
+    ).status,
+  ).toBe(422);
+  expect(
+    (
+      await call(
+        target,
+        operator,
+        { user_id: account.user_id, active: false },
+        "PATCH",
+      )
+    ).status,
+  ).toBe(200);
+  expect((await call("/auth/session", staff)).status).toBe(403);
+  expect((await call("/auth/login", "", { email, password })).status).toBe(403);
+  expect((await api(`/admin/categories?tenant=${tenantA}`, staff)).status).toBe(
+    403,
+  );
+  expect(
+    (await call(target, operator, { user_id: account.user_id, role: "owner" }))
+      .status,
+  ).toBe(200);
+  const race = await Promise.all(
+    [users[0], account.user_id].map((user_id) =>
+      call(target, operator, { user_id, active: false }, "PATCH"),
+    ),
+  );
+  expect(race.map((r) => r.status).sort()).toEqual([200, 409]);
+  expect(
+    (await call(target, operator, { user_id: users[0], active: true }, "PATCH"))
+      .status,
+  ).toBe(200);
+  expect(
+    (await call(target, operator, { user_id: account.user_id, role: "staff" }))
+      .status,
+  ).toBe(200);
+  // Force only this test tenant's newly-created membership to fail, after Auth creation.
+  sql(
+    `create function private.central_test_failure() returns trigger language plpgsql set search_path='' as $$ begin if new.tenant_id='${tenantA}' and new.user_id not in(${users.map((u) => `'${u}'`).join(",")}) then raise exception 'INJECTED_MEMBERSHIP_FAILURE'; end if;return new;end $$;create trigger central_test_failure before insert on public.memberships for each row execute function private.central_test_failure();`,
+  );
+  let partial: { user_id: string; membership_assigned: boolean };
+  try {
+    const r = await call("/platform/accounts", operator, {
+      tenant_id: tenantA,
+      email: `partial-${ids[4]}@example.test`,
+      password,
+      role: "staff",
+    });
+    expect(r.status).toBe(202);
+    partial = await r.json();
+    users.push(partial.user_id);
+    expect(partial.membership_assigned).toBe(false);
+  } finally {
+    sql(
+      "drop trigger central_test_failure on public.memberships;drop function private.central_test_failure();",
+    );
+  }
+  expect(
+    (
+      await call("/auth/login", "", {
+        email: `partial-${ids[4]}@example.test`,
+        password,
+      })
+    ).status,
+  ).toBe(403);
+  expect(
+    (await call(target, operator, { user_id: partial!.user_id, role: "staff" }))
+      .status,
+  ).toBe(200);
+  const recovered = await call("/auth/login", "", {
+    email: `partial-${ids[4]}@example.test`,
+    password,
+  });
+  expect(recovered.status).toBe(200);
+  expect(await recovered.json()).toMatchObject({ destination: "/admin" });
+  const logs = await admin
+    .from("audit_logs")
+    .select("actor_id,action")
+    .eq("tenant_id", tenantA)
+    .like("action", "platform:membership:%");
+  expect(logs.data!.length).toBeGreaterThan(5);
+  for (const row of logs.data ?? [])
+    expect(row).toMatchObject({ actor_id: users[0] });
 });

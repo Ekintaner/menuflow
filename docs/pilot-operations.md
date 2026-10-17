@@ -5,7 +5,7 @@
 ## Kurulum
 
 1. Node 24, Docker ve temiz checkout ile `npm ci`, `npx playwright install chromium`, `npm run build` çalıştırın. README'deki özel yerel Supabase stack'ini başlatın; `npm run test:db`, `npm run test:integration`, `npm run check`, `npm run api:check` ve advisors geçmeli.
-2. Kontrollü Auth hesabı oluşturun; işletme, tenant_settings ve aktif owner üyeliğini güvenilir platform işlemiyle bağlayın. Genel kayıt açmayın. Çalışanı sahibi UUID ile ekler. Başka tenant üyeliği yetki vermez.
+2. Kontrollü Auth hesabı oluşturun; işletme, tenant_settings ve aktif owner üyeliğini güvenilir platform işlemiyle bağlayın. Genel kayıt açmayın. Hesap ve çalışan üyeliğini yalnız platform yöneticisi açar; restoran sahibi üyelik veremez. Ortak giriş `/login` adresidir. Başka tenant üyeliği yetki vermez.
 3. Yerel değerleri `.dev.vars.example` üzerinden `.dev.vars` içine girin. Service-role yalnız Worker tarafında kalır. Gerçek anahtarları Git'e, VITE değişkenlerine, ekran görüntüsüne veya destek mesajına koymayın.
 4. Sahip kategori/ürün, fiyat ve müsaitlik oluşturur; masa açar, QR indirir, menüyü yayımlar. QR'ı doğru masada deneyin. Sipariş alımını açın; manuel kabul ile başlayın. QR fiziksel konumu kanıtlamaz.
 5. Her masa için ayrı telefon oturumunda QR → masa/işletme kontrolü → sepet/toplam → sipariş → panel kabul → hazırlama → hazır → teslim → müşteri durumu akışını uygulayın. Yanlış QR, kapalı ürün, fiyat değişimi ve ağ kesintisini deneyin.

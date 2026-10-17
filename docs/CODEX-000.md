@@ -1,5 +1,7 @@
 # CODEX-000 — MenuFlow ürün ve teknik planı
 
+18 Ekim 2026 kullanıcı kararı: hesap ve owner/staff üyeliklerini yalnız platform yöneticisi yönetir; tüm panel kullanıcıları `/login` ortak girişini kullanır. Aşağıdaki ilk planda geçen restoran sahibinin çalışan üyeliği yönetimi bu kararla değişmiştir. Güncel uygulama: [merkezi erişim](central-access.md).
+
 **Sürüm:** 1.0  
 **Tarih:** 18 Ekim 2026  
 **Durum:** Uygulama öncesi plan

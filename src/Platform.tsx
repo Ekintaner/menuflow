@@ -1,3 +1,5 @@
+import { PanelLogin } from "./PanelLogin";
+import { PlatformMembers } from "./PlatformMembers";
 import { useEffect, useState, type FormEvent } from "react";
 import QRCode from "qrcode";
 type Restaurant = {
@@ -253,10 +255,11 @@ export function Platform({ demo = false }: { demo?: boolean }) {
         <a href="/" className="text-2xl font-bold">
           MenuFlow.
         </a>
-        <nav className="flex gap-4" aria-label="Platform menüsü">
+        <nav className="flex flex-wrap gap-4" aria-label="Platform menüsü">
           <a href="/admin">Restoran paneli</a>
-          <a href={demo ? "/platform" : "/platform-demo"}>
-            {demo ? "Gerçek yönetici girişi" : "Örnek ekran"}
+          {!demo && <a href="/login">Ortak giriş</a>}
+          <a href={demo ? "/login" : "/platform-demo"}>
+            {demo ? "Ortak giriş" : "Örnek ekran"}
           </a>
         </nav>
       </header>
@@ -284,46 +287,7 @@ export function Platform({ demo = false }: { demo?: boolean }) {
         </p>
       )}
       {!authenticated ? (
-        <section className="card max-w-md">
-          <h2>Yalnız platform yöneticisi</h2>
-          <p className="my-3 text-sm">
-            Restoran sahibi hesapları bu ekrana erişemez.
-          </p>
-          <form
-            className="space-y-4"
-            onSubmit={(e) => {
-              e.preventDefault();
-              const f = new FormData(e.currentTarget);
-              void run(async () => {
-                await api("/auth/login", {
-                  email: f.get("email"),
-                  password: f.get("password"),
-                });
-                await load();
-              });
-            }}
-          >
-            <label className="block">
-              E-posta
-              <input
-                name="email"
-                type="email"
-                autoComplete="username"
-                required
-              />
-            </label>
-            <label className="block">
-              Parola
-              <input
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-              />
-            </label>
-            <button disabled={busy}>Giriş yap</button>
-          </form>
-        </section>
+        <PanelLogin />
       ) : (
         <>
           {!demo && (
@@ -464,6 +428,9 @@ export function Platform({ demo = false }: { demo?: boolean }) {
             </section>
           </div>
         </>
+      )}
+      {authenticated && restaurant && (
+        <PlatformMembers key={selected} tenant={selected} demo={demo} />
       )}
       {qr && (
         <section

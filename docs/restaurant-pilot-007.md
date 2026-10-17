@@ -1,5 +1,7 @@
 # CODEX-007 — Örnek restoran pilotu ve kabul defteri
 
+Güncel ek: [ortak giriş ve merkezi üyelik](central-access.md). Tek giriş `/login`; hesap açma ve üyelik yönetimi yalnız platform yöneticisinde. Önceki owner tarafından staff yönetimi planı bu kararla değişti.
+
 18 Ekim 2026. Kullanıcının seçimi: şimdilik örnek restoran. Gerçek işletme onboarding'i, hesap yetkisi, dış URL ve canlı sipariş onayı yok. Kurgusal katalog: [demo-catalog.json](demo-catalog.json). Bu dosya veriyi otomatik hiçbir ortama yüklemez.
 
 ## Platform ekranı
@@ -8,7 +10,7 @@
 
 `/platform`: ayrı platform yönetimi. Aynı kontrollü Auth girişini kullanır; sunucu her istekte getUser ile doğrular ve kimliği yalnız PLATFORM_ADMIN_USER_ID ile birebir karşılaştırır. Restoran sahibi/staff rolü, e-posta adı veya editable user_metadata erişim sağlamaz. Ayar boşken API kapalıdır. UUID yalnız gerçek kullanıcının hesabı doğrulandıktan sonra secret olarak girilir. Parola veya API secret'ı tarayıcıya verilmez. 1 saatlik oturum sonrası tekrar giriş gerekir; ayrı MFA arayüzü yoktur. Platform hesabına güçlü parola ve kontrollü erişim gerekir; dashboard MFA ile uygulama MFA'sını aynı şey saymayın.
 
-İlk sürüm: restoran adı/kısa adı, mevcut masa sayısı, TRY ve Europe/Istanbul; 1–100 başlangıç masası, toplam 100'e kadar ek masa. Mevcut restoranlar 50'lik cursor ile listelenir. Restoran sahibi Auth UUID'si isteğe bağlıdır; boşsa platform yöneticisi ilk sahip olur ve `/admin` üzerinden menü kurabilir. Sahip hesabı önceden kontrollü açılmalıdır; platform kullanıcıya e-posta göndermez. Toplu restoran silme, sahip devir ekranı, faturalama, tüm siparişleri platformdan izleme ve otomatik müşteri onboarding'i kapsam dışıdır. Restoran adı/zaman dilimi düzenleme ve masa azaltma bu sürümde yok; masa kapatma mevcut restoran panelindedir.
+İlk sürüm: restoran adı/kısa adı, mevcut masa sayısı, TRY ve Europe/Istanbul; 1–100 başlangıç masası, toplam 100'e kadar ek masa. Mevcut restoranlar 50'lik cursor ile listelenir. Restoran sahibi Auth UUID'si isteğe bağlıdır; boşsa platform yöneticisi ilk sahip olur ve `/admin` üzerinden menü kurabilir. Sahip hesabını platform yöneticisi yeni hesap formundan kontrollü açabilir; platform kullanıcıya e-posta göndermez. Toplu restoran silme, sahip devir ekranı, faturalama, tüm siparişleri platformdan izleme ve otomatik müşteri onboarding'i kapsam dışıdır. Restoran adı/zaman dilimi düzenleme ve masa azaltma bu sürümde yok; masa kapatma mevcut restoran panelindedir.
 
 Oluşturma; tenant, settings, owner üyeliği ve masaları tek transaction'da yazar. Eksik sahip UUID'si veya çakışan slug yarım restoran bırakmaz. Yeni restoran manuel kabul + sipariş kapalı + menü yayımlanmamış halde başlar. Platform yazmaları audit actor/action kaydı üretir. QR yenileme tablo kilidi altında eski QR ve guest oturumlarını iptal eder; yalnız token özeti DB'ye yazılır. Ham QR yalnız yanıtta bir kez gösterilir, log'a yazılmaz. PNG kaybolursa eski baskıyı iptal ederek yenileyin. QR üretilmesi menüyü yayımlamaz veya siparişi açmaz.
 

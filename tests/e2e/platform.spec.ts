@@ -66,7 +66,7 @@ test("restaurant owner cannot open the platform console", async ({ page }) => {
   await page.goto("/platform");
   await expect(page.getByRole("alert")).toContainText("yetkili değil");
   await expect(
-    page.getByRole("heading", { name: "Yalnız platform yöneticisi" }),
+    page.getByRole("heading", { name: "Panel girişi" }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Restoranı oluştur" }),

@@ -13,7 +13,7 @@ test("customer demo cart and admin navigation", async ({ page }) => {
   ).toBeDisabled();
   await page.getByRole("link", { name: "Yönetim" }).click();
   await expect(
-    page.getByRole("heading", { name: "Yönetici girişi" }),
+    page.getByRole("heading", { name: "Panel girişi" }),
   ).toBeVisible();
   await expect(page.getByLabel("E-posta")).toBeVisible();
 });
