@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 
 // Only this deliberately created staging project. Never read or overwrite .dev.vars.
@@ -13,10 +13,14 @@ if (
   throw Error("Unexpected staging target.");
 const origin = "http://127.0.0.1:5210";
 const expires = Date.now() + 3600000;
+const secretFile =
+  ".wrangler/staging-010-qnvsioxptgxrmoprlbbc/server-secrets.json";
 const headers = {
   "Content-Type": "text/html; charset=utf-8",
   "Cache-Control": "no-store",
-  "Referrer-Policy": "no-referrer",
+  // no-referrer turns a native form POST's Origin into null in Chromium.
+  // Preserve same-origin form provenance; outbound links remain noreferrer.
+  "Referrer-Policy": "same-origin",
   "X-Content-Type-Options": "nosniff",
   "X-Frame-Options": "DENY",
   "Content-Security-Policy":
@@ -27,6 +31,20 @@ const page = (body) =>
 const form = page(
   `<h1>MenuFlow internet testini bağla</h1><p>Yeni <strong>menuflow-staging</strong> projesinin sunucu anahtarını yalnız bu yerel ekrana yapıştır. Bu bir hesap parolası değildir. Sohbete gönderme.</p><p><a href="https://supabase.com/dashboard/project/qnvsioxptgxrmoprlbbc/settings/api-keys" target="_blank" rel="noreferrer">Supabase proje anahtarlarını aç</a>. Secret key veya eski service_role anahtarını kullan. Anahtar yalnız bu projenin HTTPS API’sinde doğrulanır ve bilgisayarda Git dışında, erişimi kısıtlı dosyada saklanır. Sonraki adımda yalnız MenuFlow staging Worker secret’ına yüklenecek.</p><form method="POST" action="/save"><label for="key">Staging sunucu secret anahtarı</label><input id="key" name="key" type="password" autocomplete="off" required maxlength="4096"><button>Güvenle kaydet</button></form><p>Yerel hesap, mevcut admin kimliği ve diğer projeler değiştirilmez. Ekran bir saat sonra kapanır.</p>`,
 );
+const saved = page(
+  "<h1>Kaydedildi.</h1><p>Anahtar doğrulandı ve yalnız bu bilgisayarda güvenle saklandı. Sohbete yalnız “anahtarı kaydettim” yazabilirsin. Bu sayfa artık kapanabilir.</p>",
+);
+const results = {
+  invalid: "Anahtar alanını kontrol edip tekrar dene.",
+  rejected:
+    "Bu proje için sunucu anahtarı doğrulanamadı. menuflow-staging projesindeki Secret veya service_role anahtarını kullan.",
+  failed:
+    "Anahtar doğrulanamadı veya kaydedilemedi. Tekrar deneyebilir ya da anahtarı paylaşmadan durumu bildirebilirsin.",
+};
+function redirectResult(res, state) {
+  // POST/redirect/GET clears the submitted key from the page and avoids resubmission.
+  res.writeHead(303, { Location: `/result?state=${state}` }).end();
+}
 const server = createServer(async (req, res) => {
   for (const [k, v] of Object.entries(headers)) res.setHeader(k, v);
   if (req.headers.host !== "127.0.0.1:5210") {
@@ -38,7 +56,19 @@ const server = createServer(async (req, res) => {
     return;
   }
   if (req.method === "GET" && req.url === "/") {
-    res.end(form);
+    res.end(existsSync(secretFile) ? saved : form);
+    return;
+  }
+  if (req.method === "GET" && req.url?.startsWith("/result?state=")) {
+    const state = new URL(req.url, origin).searchParams.get("state");
+    if (state === "saved" && existsSync(secretFile)) res.end(saved);
+    else if (Object.hasOwn(results, state))
+      res.end(
+        page(
+          `<h1>Kurulum tamamlanmadı.</h1><p>${results[state]}</p><a href="/">Kurulum ekranına dön</a>`,
+        ),
+      );
+    else res.writeHead(404).end();
     return;
   }
   if (req.method !== "POST" || req.url !== "/save") {
@@ -51,6 +81,10 @@ const server = createServer(async (req, res) => {
       "application/x-www-form-urlencoded"
   ) {
     res.writeHead(403).end();
+    return;
+  }
+  if (existsSync(secretFile)) {
+    redirectResult(res, "saved");
     return;
   }
   try {
@@ -72,7 +106,7 @@ const server = createServer(async (req, res) => {
       key.length > 4096 ||
       !/^[A-Za-z0-9_.-]+$/.test(key)
     ) {
-      res.writeHead(400).end(page("<p>Anahtarı kontrol et.</p>"));
+      redirectResult(res, "invalid");
       return;
     }
     const db = createClient(config.SUPABASE_URL, key, {
@@ -84,17 +118,11 @@ const server = createServer(async (req, res) => {
     });
     const { error } = await db.auth.admin.listUsers({ page: 1, perPage: 1 });
     if (error) {
-      res
-        .writeHead(400)
-        .end(
-          page(
-            "<p>Bu proje için sunucu anahtarı doğrulanamadı. Doğru staging projesindeki Secret/service_role anahtarını kullan.</p>",
-          ),
-        );
+      redirectResult(res, "rejected");
       return;
     }
     writeFileSync(
-      ".wrangler/staging-010-qnvsioxptgxrmoprlbbc/server-secrets.json",
+      secretFile,
       JSON.stringify({
         SUPABASE_URL: config.SUPABASE_URL,
         SUPABASE_PUBLISHABLE_KEY: config.SUPABASE_PUBLISHABLE_KEY,
@@ -102,20 +130,9 @@ const server = createServer(async (req, res) => {
       }),
       { mode: 0o600, flag: "wx" },
     );
-    res.end(
-      page(
-        "<h1>Kaydedildi.</h1><p>Anahtar doğrulandı ve yalnız bu bilgisayarda güvenle saklandı. Sohbete yalnız “anahtarı kaydettim” yazabilirsin. Bu sayfa artık kapanabilir.</p>",
-      ),
-    );
-    server.close();
+    redirectResult(res, "saved");
   } catch {
-    res
-      .writeHead(503)
-      .end(
-        page(
-          "<p>Kaydedilemedi. Mevcut bir kayıt olabilir; anahtarı sohbete göndermeden durumu bildir.</p>",
-        ),
-      );
+    redirectResult(res, "failed");
   }
 });
 server.requestTimeout = 15000;
