@@ -293,3 +293,6 @@ Her aşama incelemeye uygun çıktı ve doğrulama sonucu üretir. Canlı yayın
 Bu plan; ürün kapsamını, rolleri, veri ilişkilerini, API davranışını, sipariş durumlarını, tenant ve müşteri izolasyonunu, QR güvenlik sınırını, test kapılarını ve hosting yaklaşımını tanımlar.
 
 **İlk uygulama adımı CODEX-001’dir.** Başlamadan önce mevcut taslak varsayımlar ürün kararları olarak netleştirilir; bu aşamada kod, repo ve bulut kurulumu yapılmamıştır.
+## CODEX-008 scope amendment — 18 October 2026
+
+The user explicitly brought shared table checks and administrator-reviewed access applications into scope. The earlier “MVP outside: shared table billing” line is historical and superseded. The implementation preserves anonymous customer sessions and the single management login; `/register` is a pending contact application, not public Auth signup. Financial visits, settlement safety and UUID-based administrator bootstrap are documented in [CODEX-008](CODEX-008.md).

@@ -19,6 +19,8 @@ for (const destination of ["/platform", "/admin"]) {
         });
         return route.fulfill({ json: { authenticated: true, destination } });
       }
+      if (url.includes("/platform/registrations"))
+        return route.fulfill({ json: { requests: [], next: null } });
       if (url.endsWith("/platform/restaurants"))
         return route.fulfill({ json: { restaurants: [], next: null } });
       if (url.endsWith("/admin/memberships"))
@@ -39,7 +41,7 @@ for (const destination of ["/platform", "/admin"]) {
     ).toBeVisible();
     await expect(
       page.getByRole("link", { name: /Kayıt ol|Üye ol/ }),
-    ).toHaveCount(0);
+    ).toHaveAttribute("href", "/register");
     const axe = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
       .analyze();

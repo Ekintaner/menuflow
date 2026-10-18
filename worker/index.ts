@@ -1,5 +1,6 @@
 import { guest } from "./guest";
 import { platform } from "./platform";
+import { publicRegistration } from "./registration";
 import { management, ApiError } from "./management";
 export interface Env {
   DEPLOYMENT_ENV?: string;
@@ -86,15 +87,21 @@ export async function fetchRequest(
         "ORDERING_PAUSED",
         "Yeni sipariş alımı geçici olarak durduruldu. İşletmeyle görüşün.",
       );
-    response = await (path.startsWith("/api/v1/platform/")
-      ? platform(request, env)
-      : path === "/api/v1/guest-sessions" ||
-          path.startsWith("/api/v1/orders") ||
-          (path === "/api/v1/menu" &&
-            request.method === "GET" &&
-            request.headers.get("cookie")?.includes("mf_guest="))
-        ? guest(request, env)
-        : management(request, env));
+    response = await ([
+      "/api/v1/auth/registration",
+      "/api/v1/auth/activation-session",
+      "/api/v1/auth/activate",
+    ].includes(path)
+      ? publicRegistration(request, env)
+      : path.startsWith("/api/v1/platform/")
+        ? platform(request, env)
+        : path === "/api/v1/guest-sessions" ||
+            path.startsWith("/api/v1/orders") ||
+            (path === "/api/v1/menu" &&
+              request.method === "GET" &&
+              request.headers.get("cookie")?.includes("mf_guest="))
+          ? guest(request, env)
+          : management(request, env));
   } catch (e) {
     const known = e instanceof ApiError;
     response = Response.json(

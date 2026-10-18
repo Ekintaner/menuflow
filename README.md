@@ -100,3 +100,11 @@ Sürüm uyuşmazlığı veya yasak geçiş 409; başka işletmedeki sipariş ayr
 Ayarlar beklenen sürümle güncellenir; sürümü veritabanı trigger'ı artırır ve değişiklikleri denetler. Yeni sipariş ayar satırını kilitleyerek o andaki modu kaydeder. Otomatik kabul `accepted` oluşturur, hazırlığa geçirmez; önceki siparişlere uygulanmaz. QR fiziksel konumu kanıtlamadığı için bu davranış ayar formunda açıklanır.
 
 Görünür sekmede tamamlanan istekten 4 saniye sonra polling yapılır; gizli sekmede ağ isteği gönderilmez ve 30 saniyelik kontrol aralığı kullanılır. Yetki/oturum kaybında liste temizlenir ve polling durur. Ret/iptal, uzun bekleme uyarısı, çakışma sonrası güncel liste, geçmiş ve manuel yenileme desteklenir. Sesli bildirim bu aşamada eklenmedi. Misafirin kendi sipariş takibi aynı order/event kayıtlarından ilerler.
+
+## CODEX-008: public QR menu, table checks and approved applications
+
+The current milestone adds a dedicated customer menu with no management navigation, shared `/login`, pending-only `/register`, secure `/activate`, SQL-backed table checks and physical settlement, application review and platform operational audit. Full API, schema, concurrency, migration/recovery and secure local administrator setup: [CODEX-008](docs/CODEX-008.md).
+
+Local setup after migrations: `node scripts/bootstrap-admin.mjs <your-email>`, restart the API and open `http://127.0.0.1:5208` to choose a password privately. For fictional local data: `node scripts/seed-demo-008.mjs`; the same helper's `/menu` shortcut opens its QR menu. Both tools refuse a cloud Supabase endpoint. Never commit `.dev.vars` or `.wrangler` contents.
+
+CODEX-000's initial exclusion of shared table billing is superseded by CODEX-008. Public Auth signup remains disabled: an access application creates neither an Auth user nor an active membership. The customer still never needs an account.

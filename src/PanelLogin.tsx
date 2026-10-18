@@ -61,9 +61,11 @@ export function PanelLogin() {
         </button>
       </form>
       <p className="mt-5 text-sm">
-        Hesap ve işletme üyeliklerini yalnız platform yöneticisi açar. Herkese
-        açık kayıt bulunmaz.
+        Hesap ve işletme üyelikleri platform yöneticisi onayıyla açılır.
       </p>
+      <a className="mt-4 inline-block text-sm underline" href="/register">
+        Kayıt ol / Erişim iste
+      </a>
       <p className="mt-3 text-xs text-stone-500">
         QR menüden sipariş vermek için hesap gerekmez.
       </p>

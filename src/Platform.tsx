@@ -1,5 +1,6 @@
 import { PanelLogin } from "./PanelLogin";
 import { PlatformMembers } from "./PlatformMembers";
+import { PlatformOperations } from "./PlatformOperations";
 import { useEffect, useState, type FormEvent } from "react";
 import QRCode from "qrcode";
 type Restaurant = {
@@ -290,6 +291,7 @@ export function Platform({ demo = false }: { demo?: boolean }) {
         <PanelLogin />
       ) : (
         <>
+          <PlatformOperations demo={demo} />
           {!demo && (
             <button
               className="my-3"
@@ -383,6 +385,40 @@ export function Platform({ demo = false }: { demo?: boolean }) {
                     {restaurant.slug} · {restaurant.currency} ·{" "}
                     {restaurant.timezone}
                   </p>
+                  <p className="my-3 text-sm">
+                    Durum: {restaurant.active ? "Aktif" : "Pasif"}
+                  </p>
+                  <button
+                    disabled={busy}
+                    onClick={() => {
+                      const reason = window.prompt(
+                        "Restoran durum değişikliği gerekçesi",
+                      );
+                      if (!reason?.trim()) return;
+                      void run(async () => {
+                        if (demo)
+                          setRestaurants(
+                            restaurants.map((r) =>
+                              r.id === selected
+                                ? { ...r, active: !r.active }
+                                : r,
+                            ),
+                          );
+                        else {
+                          await api(
+                            "/platform/restaurants/" + selected + "/state",
+                            { active: !restaurant.active, reason },
+                          );
+                          await load();
+                        }
+                        setNotice("Restoran durumu güncellendi.");
+                      });
+                    }}
+                  >
+                    {restaurant.active
+                      ? "Restoranı pasifleştir"
+                      : "Restoranı etkinleştir"}
+                  </button>
                   <form
                     className="my-4 flex flex-wrap items-end gap-3"
                     onSubmit={addTables}

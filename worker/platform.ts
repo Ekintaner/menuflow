@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { registrationAdministration } from "./registration";
 import {
   body,
   cookie,
@@ -47,6 +48,12 @@ export async function platform(request: Request, env: Env): Promise<Response> {
   const db = createClient(env.SUPABASE_URL!, env.SUPABASE_SERVICE_ROLE_KEY!, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
+  const registrationResponse = await registrationAdministration(
+    request,
+    db,
+    data.user!.id,
+  );
+  if (registrationResponse) return registrationResponse;
   const checked = <T>(r: { data: T; error: { code?: string } | null }): T => {
     if (r.error) {
       if (r.error.code === "23505")

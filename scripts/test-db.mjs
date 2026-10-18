@@ -328,6 +328,19 @@ try {
     select test_assert((select version=2 from orders where id='${orderId}'),'settings change preserves existing order version');`,
     ),
   );
+  console.log(sql("supabase/tests/checks.sql"));
+  // Restore must exercise nonempty financial and approval/audit history too.
+  docker(
+    pg,
+    `update orders set status='served';
+    set role authenticated;set request.jwt.claim.sub='50000000-0000-0000-0000-000000000001';
+    select settle_check(c.tenant_id,c.id,c.version,'restore-payment','pay',
+      (select sum(total_minor) from orders where tenant_id=c.tenant_id and check_id=c.id))
+    from table_checks c where c.tenant_id='40000000-0000-0000-0000-000000000001' and c.table_id=c.tenant_id;
+    reset role;
+    insert into registration_requests(applicant_name,email,business_name) values('Restore fixture','restore@example.test','Restore fixture');
+    insert into platform_audit_logs(actor_id,action,target_id) values('50000000-0000-0000-0000-000000000001','restore:fixture','40000000-0000-0000-0000-000000000001');`,
+  );
   // Logical backup drill: restore the complete synthetic database into a fresh
   // database, not over the source. No customer data or backup file leaves Docker.
   const dump = docker([
@@ -361,6 +374,11 @@ try {
     'items',(select count(*) from order_items),
     'events',(select count(*) from order_events),
     'idempotency',(select count(*) from idempotency_records),
+    'checks_hash',(select md5(string_agg(row_to_json(c)::text,'' order by id)) from table_checks c),
+    'settlements_hash',(select md5(string_agg(row_to_json(c)::text,'' order by id)) from check_settlements c),
+    'registrations',(select count(*) from registration_requests),
+    'registrations_hash',(select md5(string_agg(row_to_json(c)::text,'' order by id)) from registration_requests c),
+    'platform_audit_hash',(select md5(string_agg(row_to_json(c)::text,'' order by id)) from platform_audit_logs c),
     'orphans',(select count(*) from order_items i left join orders o on o.id=i.order_id and o.tenant_id=i.tenant_id where o.id is null),
     'orders_hash',(select md5(string_agg(row_to_json(o)::text,'' order by id)) from orders o),
     'items_hash',(select md5(string_agg(row_to_json(i)::text,'' order by id)) from order_items i),

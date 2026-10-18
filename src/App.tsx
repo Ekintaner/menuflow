@@ -3,6 +3,7 @@ import { Management } from "./Management";
 import { CustomerMenu } from "./CustomerMenu";
 import { Platform } from "./Platform";
 import { LoginPage } from "./PanelLogin";
+import { RegistrationRequest, Activation } from "./Registration";
 const products = [
   {
     id: "coffee",
@@ -25,6 +26,8 @@ export default function App() {
   const admin = location.pathname.startsWith("/admin");
   const [cart, setCart] = useState<Record<string, number>>({});
   if (location.pathname === "/login") return <LoginPage />;
+  if (location.pathname === "/register") return <RegistrationRequest />;
+  if (location.pathname === "/activate") return <Activation />;
   if (location.pathname === "/platform-demo") return <Platform demo />;
   if (location.pathname === "/platform") return <Platform />;
   if (admin) return <Management />;

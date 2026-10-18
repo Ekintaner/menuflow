@@ -1,5 +1,6 @@
 import { PanelLogin } from "./PanelLogin";
 import { OrderPanel } from "./OrderPanel";
+import { TableChecks } from "./TableChecks";
 import { useEffect, useState, type FormEvent } from "react";
 import QRCode from "qrcode";
 type Row = {
@@ -67,7 +68,7 @@ export function Management() {
     };
   }, []);
   useEffect(() => {
-    if (!tenant || resource === "orders") return;
+    if (!tenant || resource === "orders" || resource === "checks") return;
     let current = true;
     Promise.all([
       api(`/admin/${resource}?tenant=${tenant}`),
@@ -208,6 +209,7 @@ export function Management() {
               >
                 {[
                   ["orders", "Siparişler"],
+                  ["checks", "Adisyonlar"],
                   ["categories", "Kategoriler"],
                   ["products", "Ürünler"],
                   ["tables", "Masalar"],
@@ -227,7 +229,9 @@ export function Management() {
                   </button>
                 ))}
               </nav>
-              {resource === "orders" ? (
+              {resource === "checks" ? (
+                <TableChecks key={tenant} tenant={tenant} />
+              ) : resource === "orders" ? (
                 <OrderPanel key={tenant} tenant={tenant} owner={owner} />
               ) : (
                 <>

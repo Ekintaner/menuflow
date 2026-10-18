@@ -26,3 +26,7 @@ Yedekleri işletim sistemi şifreli diskte ve ikinci şifreli konumda tutun; ana
 ## Bu aşamada kanıtlanan sınır
 
 `npm run test:db`, ağsız geçici PostgreSQL 17'de sentetik Auth/Storage şema karşılıkları ve gerçek MenuFlow migration'larıyla çalışır. `pg_dump --no-owner` çıktısı aynı cluster içinde yeni `menuflow_restore` veritabanına yüklenir; sipariş/kalem/olay/idempotency sayıları, tenant FK yetimleri ve RLS tablo sayısı karşılaştırılır. Kaynak ve restore eşleşmezse test başarısızdır; container sonunda silinir. Gerçek Supabase Auth hesaplarının ve Storage dosyalarının felaket kurtarması bu testin kapsamı değildir; pilot öncesi ayrıca denenmelidir.
+
+## CODEX-008 addition
+
+Include `table_checks`, `check_settlements`, table/guest `visit_version`, registration applications and platform audit in the manifest, row counts and content hashes. Reconcile restored open/closed checks against physical receipts before resuming service. The network-isolated PostgreSQL drill now compares check/settlement hashes as well; full Supabase Auth/Storage recovery still requires a separate drill. Do not delete immutable financial records to resolve a recovery conflict. Use the forward-fix/legacy-check reconciliation procedure in [CODEX-008](CODEX-008.md).

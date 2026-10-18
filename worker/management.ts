@@ -1,4 +1,5 @@
 import { orderManagement } from "./order-management";
+import { checks } from "./checks";
 import { createClient } from "@supabase/supabase-js";
 import { createUserDatabase } from "./supabase";
 import type { Env } from "./index";
@@ -296,6 +297,8 @@ export async function management(
   );
   if (!membership)
     fail(403, "MEMBERSHIP_REQUIRED", "Aktif işletme üyeliği gerekli.");
+  const checkResponse = await checks(request, db, tenant);
+  if (checkResponse) return checkResponse;
   const orderResponse = await orderManagement(
     request,
     db,
