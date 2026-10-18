@@ -8,6 +8,8 @@
     "dev:web": "vite --port 5198 --strictPort",
     "dev:api": "wrangler dev --local",
     "local:menu": "node scripts/local-menu.mjs",
+    "local:https": "node scripts/phone-pilot.mjs",
+    "test:local:https": "node scripts/test-local-https.mjs",
     "build": "tsc -b && tsc -p tsconfig.worker.json && vite build",
     "lint": "eslint .",
     "test": "vitest run",

@@ -21,7 +21,17 @@ if (config.API_URL !== "http://127.0.0.1:55431")
 const db = createClient(config.API_URL, config.SERVICE_ROLE_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
-let type = "invite";
+let vars = existsSync(".dev.vars") ? readFileSync(".dev.vars", "utf8") : "";
+const existing = vars.match(
+  /^PLATFORM_ADMIN_USER_ID\s*=\s*["']?([a-f0-9-]{36})/m,
+)?.[1];
+// Validate the configured identity BEFORE issuing any invite/recovery side effect.
+if (existing) {
+  const { data, error } = await db.auth.admin.getUserById(existing);
+  if (error || data.user?.email?.toLowerCase() !== email)
+    throw Error("Configured administrator does not match. No invitation issued.");
+}
+let type = existing ? "recovery" : "invite";
 let invite = await db.auth.admin.generateLink({ type, email });
 if (
   invite.error &&
@@ -34,10 +44,6 @@ if (invite.error || !invite.data.user || !invite.data.properties?.hashed_token)
   throw Error(
     "Local invitation could not be created. No credentials were printed.",
   );
-let vars = existsSync(".dev.vars") ? readFileSync(".dev.vars", "utf8") : "";
-const existing = vars.match(
-  /^PLATFORM_ADMIN_USER_ID\s*=\s*["']?([a-f0-9-]{36})/m,
-)?.[1];
 if (existing && existing !== invite.data.user.id)
   throw Error(
     "A different administrator UUID is already configured; review it manually.",

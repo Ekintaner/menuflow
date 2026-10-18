@@ -110,3 +110,6 @@ The current milestone adds a dedicated customer menu with no management navigati
 Local setup after migrations: `node scripts/bootstrap-admin.mjs <your-email>`, restart the API and open `http://127.0.0.1:5208` to choose a password privately. For fictional local data: `node scripts/seed-demo-008.mjs`; the same helper's `/menu` shortcut opens its QR menu. Both tools refuse a cloud Supabase endpoint. Never commit `.dev.vars` or `.wrangler` contents.
 
 CODEX-000's initial exclusion of shared table billing is superseded by CODEX-008. Public Auth signup remains disabled: an access application creates neither an Auth user nor an active membership. The customer still never needs an account.
+# CODEX-010 pilot status
+
+See [First Real Pilot preparation](docs/CODEX-010.md) for the current evidence, local HTTPS diagnostic and internet staging approval gates. Public customer access uses ordinary HTTPS QR links without customer login, IP collection or certificate installation. No internet deployment has been performed.
