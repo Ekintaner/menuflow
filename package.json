@@ -11,6 +11,7 @@
     "local:https": "node scripts/phone-pilot.mjs",
     "test:local:https": "node scripts/test-local-https.mjs",
     "build": "tsc -b && tsc -p tsconfig.worker.json && vite build",
+    "build:staging": "tsc -b && tsc -p tsconfig.worker.json && vite build --mode staging",
     "lint": "eslint .",
     "test": "vitest run",
     "test:e2e": "playwright test",

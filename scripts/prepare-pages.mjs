@@ -33,6 +33,13 @@ writeFileSync(
   "Local build package; no secrets.\n",
 );
 cpSync(resolve(root, "dist"), resolve(target, "dist"), { recursive: true });
+if (environment === "staging") {
+  const headers = resolve(target, "dist/_headers");
+  writeFileSync(
+    headers,
+    readFileSync(headers, "utf8") + "\n/*\n  X-Robots-Tag: noindex, nofollow\n",
+  );
+}
 cpSync(resolve(root, "functions"), resolve(target, "functions"), {
   recursive: true,
 });

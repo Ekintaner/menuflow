@@ -78,6 +78,15 @@ export async function fetchRequest(
         );
     }
     if (
+      env.DEPLOYMENT_ENV === "staging" &&
+      path === "/api/v1/auth/registration"
+    )
+      throw new ApiError(
+        503,
+        "STAGING_ONLY",
+        "Bu test ortamında gerçek işletme başvurusu alınmıyor.",
+      );
+    if (
       env.ORDERING_DISABLED === "true" &&
       request.method === "POST" &&
       path === "/api/v1/orders"

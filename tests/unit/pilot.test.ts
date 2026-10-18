@@ -13,6 +13,21 @@ const env: Env = {
   ORDER_LIMIT: limiter,
 };
 afterEach(() => vi.unstubAllGlobals());
+it("rejects real registration intake on staging without contacting the database", async () => {
+  const network = vi.fn();
+  vi.stubGlobal("fetch", network);
+  const r = await fetchRequest(
+    new Request("https://app.test/api/v1/auth/registration", {
+      method: "POST",
+      headers: { Origin: "https://app.test" },
+      body: "{}",
+    }),
+    { ...env, DEPLOYMENT_ENV: "staging" },
+  );
+  expect(r.status).toBe(503);
+  expect(await r.json()).toMatchObject({ code: "STAGING_ONLY" });
+  expect(network).not.toHaveBeenCalled();
+});
 it("stops new orders before any database side effect", async () => {
   const network = vi.fn();
   vi.stubGlobal("fetch", network);

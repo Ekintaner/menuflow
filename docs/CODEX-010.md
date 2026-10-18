@@ -1,5 +1,7 @@
 # CODEX-010 — First Real Pilot: preparation and release gates
 
+**Current deployment and user acceptance steps:** [CODEX-010 live staging](CODEX-010-live-staging.md). The following sections retain the preparation/account-switch history and are superseded by that release record where state changed.
+
 ## Current target — user's new Supabase account
 
 Secret-intake browser correction: the initial helper's `Referrer-Policy: no-referrer` caused Chromium native form POSTs to send `Origin: null`, correctly rejected by the strict Origin check. The user's key was not saved. Changed only the intake helper to `same-origin`; outbound project links retain `rel=noreferrer`, no-store and CSP remain. The application's cookie/Origin checks were not relaxed. Validation/save outcomes now use POST/303/GET with fixed result states and readable HTML; refreshing does not repost the key. The helper stays available for the result page until its one-hour expiry and refuses overwriting a saved key. `node scripts/test-staging-setup.mjs` verifies an actual headless Chromium form sends the expected Origin, follows a 303 to a readable invalid-input result, reloads safely, and still rejects foreign/null/missing Origin and wrong Host. It uses only an invalid synthetic value, never a real secret; no secret file is created. Lint also passed. This is a local intake fix, not evidence of completed credential validation or deployment.

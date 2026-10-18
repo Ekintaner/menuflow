@@ -112,4 +112,4 @@ Local setup after migrations: `node scripts/bootstrap-admin.mjs <your-email>`, r
 CODEX-000's initial exclusion of shared table billing is superseded by CODEX-008. Public Auth signup remains disabled: an access application creates neither an Auth user nor an active membership. The customer still never needs an account.
 # CODEX-010 pilot status
 
-See [First Real Pilot preparation](docs/CODEX-010.md) for the current evidence, local HTTPS diagnostic and internet staging approval gates. Public customer access uses ordinary HTTPS QR links without customer login, IP collection or certificate installation. No internet deployment has been performed.
+Synthetic internet staging is deployed at https://menuflow-web-staging.menuflow.workers.dev. See [deployed staging and acceptance steps](docs/CODEX-010-live-staging.md) and [preparation evidence](docs/CODEX-010.md). Customer QR access uses ordinary HTTPS without customer login, IP collection or certificate installation. Physical phone acceptance and real restaurant/customer use remain pending.
