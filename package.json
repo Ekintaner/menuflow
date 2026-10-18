@@ -7,6 +7,7 @@
     "dev": "concurrently -k \"npm:dev:web\" \"npm:dev:api\"",
     "dev:web": "vite --port 5198 --strictPort",
     "dev:api": "wrangler dev --local",
+    "local:menu": "node scripts/local-menu.mjs",
     "build": "tsc -b && tsc -p tsconfig.worker.json && vite build",
     "lint": "eslint .",
     "test": "vitest run",

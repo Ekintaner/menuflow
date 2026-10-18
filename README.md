@@ -1,4 +1,6 @@
-# MenuFlow — CODEX-007
+# MenuFlow — CODEX-009
+
+CODEX-009: [sistem yeniden başlatma, test sonuçları ve gerçek cihaz/bulut pilot kapıları](docs/CODEX-009.md). Mevcut yerel veriler korunur. Parola kurulumu gerekmeyen sonraki açılışlarda `npm run local:menu` mevcut örnek menüyü `http://127.0.0.1:5208/menu` üzerinden açar; hesap veya yeni veri oluşturmaz. Kurulum aracıyla aynı 5208 portunda aynı anda çalıştırmayın.
 
 Güncel erişim modeli: tek giriş `/login`; platform yöneticisi `/platform`, işletme sahibi/çalışan `/admin` ekranına sunucunun doğruladığı yetkiyle yönlenir. Hesap açma ve owner/staff üyeliği verme/kapatma yalnız platform yöneticisindedir; restoran sahipleri üyelik değiştiremez. Herkese açık kayıt kapalıdır. [Ortak giriş ve merkezi üyelik rehberi](docs/central-access.md).
 
