@@ -1,4 +1,14 @@
-# MenuFlow — CODEX-009
+# MenuFlow
+
+[Türkçe kullanıcı rehberi](docs/kullanici-rehberi.md) — müşteri QR akışı, restoran paneli ve platform yönetimi.
+
+## Lisans ve kullanım izni
+
+Copyright © 2026 Ekin Taner. Tüm hakları saklıdır. Özgün MenuFlow kodu, belgeleri ve tasarımları için önceden yazılı izin olmadan kullanım, çalıştırma, kopyalama, değiştirme, dağıtım, satış veya barındırma izni verilmez. Tam koşullar: [LICENSE](LICENSE). Üçüncü taraf bileşenlerin kendi lisansları geçerlidir. Bu bildirim resmi tescil değildir; herkese açık GitHub deposunda GitHub hizmet koşullarının tanıdığı görüntüleme/fork haklarını kaldırmaz.
+
+## Güncel durum
+
+CODEX-010 sentetik internet test ortamı yayımlandı. Kullanıcı telefon testini başarılı bildirdi; cihaz/ağ kapsamının ayrıntıları henüz kaydedilmedi. Gerçek restoran ve müşteri verisi kullanımı için ayrıca onay gerekir. Önceki aşama notları aşağıda tarihsel bağlamıyla korunmuştur.
 
 CODEX-009: [sistem yeniden başlatma, test sonuçları ve gerçek cihaz/bulut pilot kapıları](docs/CODEX-009.md). Mevcut yerel veriler korunur. Parola kurulumu gerekmeyen sonraki açılışlarda `npm run local:menu` mevcut örnek menüyü `http://127.0.0.1:5208/menu` üzerinden açar; hesap veya yeni veri oluşturmaz. Kurulum aracıyla aynı 5208 portunda aynı anda çalıştırmayın.
 
@@ -87,7 +97,6 @@ Yerel şema güncellemesi: `npx supabase migration up --local`. Doğrulama: `npm
 
 Sipariş alımı varsayılan kapalıdır; işletme sahibi CODEX-005 panelinden açabilir. Canlı migration ve deployment ayrı adımlardır.
 
-
 ## CODEX-005: restoran sipariş paneli
 
 `/admin` → **Siparişler**. Sahip ve çalışan, yalnız aktif üyeliği olan işletmenin siparişlerini masa bazında görür; durum, masa ve başlangıç/bitiş tarihine göre filtreler. Tarih alanları tarayıcının yerel saatinden UTC'ye çevrilir; bitiş hariçtir. Aktif/geçmiş listeleri ve ayrıntıdaki olay geçmişi desteklenir. Listeler varsayılan 25, en fazla 100 kayıt; `(created_at,id)` cursor sayfalaması kullanır.
@@ -110,6 +119,7 @@ The current milestone adds a dedicated customer menu with no management navigati
 Local setup after migrations: `node scripts/bootstrap-admin.mjs <your-email>`, restart the API and open `http://127.0.0.1:5208` to choose a password privately. For fictional local data: `node scripts/seed-demo-008.mjs`; the same helper's `/menu` shortcut opens its QR menu. Both tools refuse a cloud Supabase endpoint. Never commit `.dev.vars` or `.wrangler` contents.
 
 CODEX-000's initial exclusion of shared table billing is superseded by CODEX-008. Public Auth signup remains disabled: an access application creates neither an Auth user nor an active membership. The customer still never needs an account.
+
 # CODEX-010 pilot status
 
-Synthetic internet staging is deployed at https://menuflow-web-staging.menuflow.workers.dev. See [deployed staging and acceptance steps](docs/CODEX-010-live-staging.md) and [preparation evidence](docs/CODEX-010.md). Customer QR access uses ordinary HTTPS without customer login, IP collection or certificate installation. Physical phone acceptance and real restaurant/customer use remain pending.
+Synthetic internet staging is deployed at https://menuflow-web-staging.menuflow.workers.dev. See [deployed staging and acceptance steps](docs/CODEX-010-live-staging.md) and [preparation evidence](docs/CODEX-010.md). Customer QR access uses ordinary HTTPS without customer login, IP collection or certificate installation. The user reported a successful phone test; detailed device/network coverage is not recorded. Real restaurant/customer use remains unapproved.

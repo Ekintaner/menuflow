@@ -1,6 +1,6 @@
 # CODEX-010 — deployed synthetic staging
 
-18 October 2026. Internet staging is deployed and automated hosted acceptance passed. **Real phone acceptance and real restaurant/customer use remain unapproved/unperformed.**
+18 October 2026. Internet staging is deployed and automated hosted acceptance passed. **The user subsequently reported a successful phone test; detailed device/network coverage is not recorded. Real restaurant/customer use remains unapproved/unperformed.** The verification entries below preserve the automated release evidence and outstanding detailed physical acceptance coverage.
 
 ## Entry points
 
