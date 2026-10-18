@@ -1,5 +1,15 @@
 # CODEX-010 — First Real Pilot: preparation and release gates
 
+## Current target — user's new Supabase account
+
+The user could not access the original Supabase account and requested staging under the account authenticated with their new GitHub login. After reconnecting, the tools verified a different organization, **Ekintaner's Org**, ID `heuuyjjxpxaaqejqtwlo`, with zero projects. This is the authorized active target; earlier account details below are historical and must not be used for deployment.
+
+The provider quoted **USD 0/month** for this organization. Created separate `menuflow-staging`, Frankfurt `eu-central-1`, ref `qnvsioxptgxrmoprlbbc`, ACTIVE_HEALTHY. Verified empty public schema and zero Auth users before applying the eight repository migrations. Ledger versions/names match their original repository filenames. All 17 public tables have RLS; zero public tables lack RLS; menu-images remains private with a 307200-byte cap. Security/performance advisors returned only the same INFO categories described below, with no WARN/ERROR. A real-cloud rollback test passed owner A/B isolation, authenticated QR-hash denial and anon tenant denial, then left zero tenants/Auth users.
+
+The old account's project was not deleted, reset or changed. The old local secret page was stopped before reconnecting. `staging-secret-setup.mjs` now pins only the new project URL; its public config was refreshed from the new project's publishable key. The old public-only config was retained privately as `.wrangler/staging-010-public.previous-account.json`. New server secrets will be saved only in `.wrangler/staging-010-qnvsioxptgxrmoprlbbc/server-secrets.json`, with a separate current-user/SYSTEM ACL; they cannot overwrite an old-account secret file. No server key has been entered by the user yet. Lint and local intake smoke passed: new project link, no old project link, Host/Origin/input rejection, no-store, and no secret file created during testing.
+
+Cloudflare authentication remains available on the previously authorized account. Next user step: open `http://127.0.0.1:5210`, follow its link to the **new** project's API keys, and paste its existing Secret/service_role key into that local form only. Do not send the key or password to chat. New account/project selection and free publication are already authorized. Auth configuration, fictional fixtures/operator activation, secret upload, deployment and hosted phone acceptance remain pending. Local admin identity and data remain untouched.
+
 ## Authorized staging setup — follow-up
 
 The user subsequently approved both GitHub push and free internet staging publication, then delegated organization selection. Commit `4e7772e` was pushed without force; [CI run 39114247612](https://github.com/Ekintaner/menuflow/actions/runs/39114247612) passed completely. Publication approval remains valid; no additional publication approval is needed within the synthetic/free scope.

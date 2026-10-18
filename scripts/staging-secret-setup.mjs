@@ -7,8 +7,8 @@ const config = JSON.parse(
   readFileSync(".wrangler/staging-010-public.json", "utf8"),
 );
 if (
-  config.project_ref !== "ghvzgwntdhbvgkloqkis" ||
-  config.SUPABASE_URL !== "https://ghvzgwntdhbvgkloqkis.supabase.co"
+  config.project_ref !== "qnvsioxptgxrmoprlbbc" ||
+  config.SUPABASE_URL !== "https://qnvsioxptgxrmoprlbbc.supabase.co"
 )
   throw Error("Unexpected staging target.");
 const origin = "http://127.0.0.1:5210";
@@ -25,7 +25,7 @@ const headers = {
 const page = (body) =>
   `<!doctype html><html lang="tr"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MenuFlow staging kurulumu</title><style>body{font:18px system-ui;max-width:680px;margin:8vh auto;padding:24px;color:#173c34;background:#f5f3ed}p{line-height:1.6}input,button{display:block;font:inherit;padding:14px;box-sizing:border-box;width:100%;margin:18px 0}button{color:white;background:#173c34;border:0}a{color:#173c34}</style>${body}</html>`;
 const form = page(
-  `<h1>MenuFlow internet testini bağla</h1><p>Yeni <strong>menuflow-staging</strong> projesinin sunucu anahtarını yalnız bu yerel ekrana yapıştır. Bu bir hesap parolası değildir. Sohbete gönderme.</p><p><a href="https://supabase.com/dashboard/project/ghvzgwntdhbvgkloqkis/settings/api-keys" target="_blank" rel="noreferrer">Supabase proje anahtarlarını aç</a>. Secret key veya eski service_role anahtarını kullan. Anahtar yalnız bu projenin HTTPS API’sinde doğrulanır ve bilgisayarda Git dışında, erişimi kısıtlı dosyada saklanır. Sonraki adımda yalnız MenuFlow staging Worker secret’ına yüklenecek.</p><form method="POST" action="/save"><label for="key">Staging sunucu secret anahtarı</label><input id="key" name="key" type="password" autocomplete="off" required maxlength="4096"><button>Güvenle kaydet</button></form><p>Yerel hesap, mevcut admin kimliği ve diğer projeler değiştirilmez. Ekran bir saat sonra kapanır.</p>`,
+  `<h1>MenuFlow internet testini bağla</h1><p>Yeni <strong>menuflow-staging</strong> projesinin sunucu anahtarını yalnız bu yerel ekrana yapıştır. Bu bir hesap parolası değildir. Sohbete gönderme.</p><p><a href="https://supabase.com/dashboard/project/qnvsioxptgxrmoprlbbc/settings/api-keys" target="_blank" rel="noreferrer">Supabase proje anahtarlarını aç</a>. Secret key veya eski service_role anahtarını kullan. Anahtar yalnız bu projenin HTTPS API’sinde doğrulanır ve bilgisayarda Git dışında, erişimi kısıtlı dosyada saklanır. Sonraki adımda yalnız MenuFlow staging Worker secret’ına yüklenecek.</p><form method="POST" action="/save"><label for="key">Staging sunucu secret anahtarı</label><input id="key" name="key" type="password" autocomplete="off" required maxlength="4096"><button>Güvenle kaydet</button></form><p>Yerel hesap, mevcut admin kimliği ve diğer projeler değiştirilmez. Ekran bir saat sonra kapanır.</p>`,
 );
 const server = createServer(async (req, res) => {
   for (const [k, v] of Object.entries(headers)) res.setHeader(k, v);
@@ -94,7 +94,7 @@ const server = createServer(async (req, res) => {
       return;
     }
     writeFileSync(
-      ".wrangler/staging-010/server-secrets.json",
+      ".wrangler/staging-010-qnvsioxptgxrmoprlbbc/server-secrets.json",
       JSON.stringify({
         SUPABASE_URL: config.SUPABASE_URL,
         SUPABASE_PUBLISHABLE_KEY: config.SUPABASE_PUBLISHABLE_KEY,
